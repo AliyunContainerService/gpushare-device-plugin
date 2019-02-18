@@ -1,4 +1,4 @@
-# GPU Sharing Scheduler Device Plugin in Kuberntes 
+# GPU Sharing Device Plugin in Kuberntes 
 
 [![Build Status](https://travis-ci.org/AliyunContainerService/gpushare-device-plugin.svg?branch=master)](https://travis-ci.org/AliyunContainerService/gpushare-device-plugin) 
 [![Go Report Card](https://goreportcard.com/badge/github.com/AliyunContainerService/gpushare-device-plugin)](https://goreportcard.com/report/github.com/AliyunContainerService/gpushare-device-plugin)
