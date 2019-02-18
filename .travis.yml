@@ -1,0 +1,18 @@
+language: go
+
+go:
+  - "1.10"
+
+go_import_path: github.com/AliyunContainerService/gpushare-device-plugin
+
+# let us have speedy Docker-based Travis workers
+sudo: false
+
+env:
+  - CGO_LDFLAGS_ALLOW='-Wl,--unresolved-symbols=ignore-in-object-files'
+
+script:
+  - go build -ldflags="-s -w" -o gpushare-device-plugin cmd/nvidia/main.go
+  - go build -o kubectl-inspect-gpushare cmd/inspect/*.go
+  - go vet ./...
+  - go test ./...
