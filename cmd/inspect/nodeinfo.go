@@ -20,7 +20,7 @@ type DeviceInfo struct {
 
 func (d *DeviceInfo) String() string {
 	if d.idx == -1 {
-		fmt.Sprintf("%d", d.usedGPUMem)
+		return fmt.Sprintf("%d", d.usedGPUMem)
 	}
 	return fmt.Sprintf("%d/%d", d.usedGPUMem, d.totalGPUMem)
 }
