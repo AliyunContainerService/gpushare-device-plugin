@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: binpack-1
+  labels:
+    app: binpack-1
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: binpack-1
+
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+
+metadata:
+  name: binpack-1
+  labels:
+    app: binpack-1
+
+spec:
+  replicas: 3
+  serviceName: "binpack-1"
+  selector: # define how the deployment finds the pods it mangages
+    matchLabels:
+      app: binpack-1
+
+  template: # define the pods specifications
+    metadata:
+      labels:
+        app: binpack-1
+
+    spec:
+      containers:
+      - name: binpack-1
+        image: cheyang/gpu-player:v2
+        resources:
+          limits:
+            # MiB
+            aliyun.com/gpu-mem: 8076

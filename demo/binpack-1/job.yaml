@@ -1,0 +1,17 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gpu-job
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+      - name: gpu-job
+        image: alpine:3.6
+        resources:
+            limits:
+              # MiB
+              aliyun.com/gpu-mem: 8076
+        command: ["sleep","30s"]
+      restartPolicy: Never
