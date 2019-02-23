@@ -46,6 +46,7 @@ func buildAllNodeInfos(allPods []v1.Pod, nodes []v1.Node) ([]*NodeInfo, error) {
 	nodeInfos := buildNodeInfoWithPods(allPods, nodes)
 	for _, info := range nodeInfos {
 		if info.gpuTotalMemory > 0 {
+			setMetric(info.gpuTotalMemory)
 			err := info.buildDeviceInfo()
 			if err != nil {
 				log.Warningf("Failed due to %v", err)
@@ -220,4 +221,20 @@ func isGPUSharingNode(node v1.Node) bool {
 	}
 
 	return ok
+}
+
+var (
+	metric = ""
+)
+
+func setMetric(gpuMemory int) {
+	if metric != "" {
+		return
+	}
+
+	if gpuMemory > 100 {
+		metric = "MiB"
+	} else {
+		metric = "GiB"
+	}
 }
