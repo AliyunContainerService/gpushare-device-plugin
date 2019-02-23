@@ -16,7 +16,8 @@ type sharedGPUManager struct {
 	healthCheck bool
 }
 
-func NewSharedGPUManager(enableMPS, healthCheck bool) *sharedGPUManager {
+func NewSharedGPUManager(enableMPS, healthCheck bool, metric BinaryPrefix) *sharedGPUManager {
+	metric = metric
 	return &sharedGPUManager{
 		enableMPS:   enableMPS,
 		healthCheck: healthCheck,
