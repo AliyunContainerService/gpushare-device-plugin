@@ -71,7 +71,7 @@ func (n *NodeInfo) acquirePluginPod() v1.Pod {
 }
 
 func getTotalGPUMemory(node v1.Node) int {
-	val, ok := node.Status.Capacity[resourceName]
+	val, ok := node.Status.Allocatable[resourceName]
 
 	if !ok {
 		return 0
@@ -81,7 +81,7 @@ func getTotalGPUMemory(node v1.Node) int {
 }
 
 func getGPUCountInNode(node v1.Node) int {
-	val, ok := node.Status.Capacity[countName]
+	val, ok := node.Status.Allocatable[countName]
 
 	if !ok {
 		return int(0)

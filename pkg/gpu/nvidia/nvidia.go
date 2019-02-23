@@ -37,6 +37,7 @@ func setGPUMemory(raw uint) {
 		v = raw / 1024
 	}
 	gpuMemory = v
+	log.Infof("set gpu memory: %d", gpuMemory)
 }
 
 func getGPUMemory() uint {
