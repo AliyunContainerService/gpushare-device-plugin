@@ -30,7 +30,7 @@ func translateMetrics(value string) nvidia.BinaryPrefix {
 	case nvidia.GiBPrefix:
 	default:
 		log.Warningf("Unsupported metric: %s, use metric Gi as default", value)
-		metric = nvidia.GiBinaryPrefix
+		metric = nvidia.GiBPrefix
 	}
 
 	return metric
