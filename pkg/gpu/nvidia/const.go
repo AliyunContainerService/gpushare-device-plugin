@@ -4,8 +4,8 @@ import (
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
-// BinaryPrefix describes GPU Memory, now only supports Gi, Mi
-type BinaryPrefix string
+// MemoryUnit describes GPU Memory, now only supports Gi, Mi
+type MemoryUnit string
 
 const (
 	resourceName  = "aliyun.com/gpu-mem"
@@ -30,6 +30,6 @@ const (
 	EnvResourceAssumeTime  = "ALIYUN_COM_GPU_MEM_ASSUME_TIME"
 	EnvResourceAssignTime  = "ALIYUN_COM_GPU_MEM_ASSIGN_TIME"
 
-	GiBPrefix = "Gi"
-	MiBPrefix = "Mi"
+	GiBPrefix = MemoryUnit("Gi")
+	MiBPrefix = MemoryUnit("Mi")
 )

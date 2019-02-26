@@ -10,7 +10,7 @@ import (
 var (
 	mps         = flag.Bool("mps", false, "Enable or Disable MPS")
 	healthCheck = flag.Bool("health-check", false, "Enable or disable Health check")
-	metric      = flag.String("metric", "Gi", "Set metric of the GPU Memroy, support 'Gi' and 'Mi'")
+	metric      = flag.String("metric", "GiB", "Set metric of the GPU Memroy, support 'GiB' and 'MiB'")
 )
 
 func main() {
@@ -23,8 +23,8 @@ func main() {
 	}
 }
 
-func translateMetrics(value string) nvidia.BinaryPrefix {
-	metric := nvidia.BinaryPrefix(value)
+func translateMetrics(value string) nvidia.MemoryUnit {
+	metric := nvidia.MemoryUnit(value)
 	switch metric {
 	case nvidia.MiBPrefix:
 	case nvidia.GiBPrefix:

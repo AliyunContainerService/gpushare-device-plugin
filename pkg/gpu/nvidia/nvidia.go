@@ -14,7 +14,7 @@ import (
 
 var (
 	gpuMemory uint
-	metric    BinaryPrefix
+	metric    MemoryUnit
 )
 
 func check(err error) {
