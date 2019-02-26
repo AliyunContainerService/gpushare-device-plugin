@@ -10,28 +10,28 @@ import (
 var (
 	mps         = flag.Bool("mps", false, "Enable or Disable MPS")
 	healthCheck = flag.Bool("health-check", false, "Enable or disable Health check")
-	metric      = flag.String("metric", "GiB", "Set metric of the GPU Memroy, support 'GiB' and 'MiB'")
+	memoryUnit  = flag.String("memory-unit", "GiB", "Set memoryUnit of the GPU Memroy, support 'GiB' and 'MiB'")
 )
 
 func main() {
 	flag.Parse()
 	log.V(1).Infoln("Start gpushare device plugin")
-	ngm := nvidia.NewSharedGPUManager(*mps, *healthCheck, translateMetrics(*metric))
+	ngm := nvidia.NewSharedGPUManager(*mps, *healthCheck, translatememoryUnits(*memoryUnit))
 	err := ngm.Run()
 	if err != nil {
 		log.Fatalf("Failed due to %v", err)
 	}
 }
 
-func translateMetrics(value string) nvidia.MemoryUnit {
-	metric := nvidia.MemoryUnit(value)
-	switch metric {
+func translatememoryUnits(value string) nvidia.MemoryUnit {
+	memoryUnit := nvidia.MemoryUnit(value)
+	switch memoryUnit {
 	case nvidia.MiBPrefix:
 	case nvidia.GiBPrefix:
 	default:
-		log.Warningf("Unsupported metric: %s, use metric Gi as default", value)
-		metric = nvidia.GiBPrefix
+		log.Warningf("Unsupported memory unit: %s, use memoryUnit Gi as default", value)
+		memoryUnit = nvidia.GiBPrefix
 	}
 
-	return metric
+	return memoryUnit
 }
