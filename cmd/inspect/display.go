@@ -144,7 +144,7 @@ func displaySummary(nodeInfos []*NodeInfo) {
 	if hasPendingGPU {
 		buffer.WriteString("PENDING(Allocated)\t")
 	}
-	buffer.WriteString(fmt.Sprintf("GPU Memory(%s)\n", metric))
+	buffer.WriteString(fmt.Sprintf("GPU Memory(%s)\n", memoryUnit))
 
 	// fmt.Fprintf(w, "NAME\tIPADDRESS\tROLE\tGPU(Allocated/Total)\tPENDING(Allocated)\n")
 	fmt.Fprintf(w, buffer.String())

@@ -236,7 +236,7 @@ func setUnit(gpuMemory, gpuCount int) {
 		return
 	}
 
-	gpuMemoryByDev = gpuMemory / gpuCount
+	gpuMemoryByDev := gpuMemory / gpuCount
 
 	if gpuMemoryByDev > 100 {
 		memoryUnit = "MiB"
