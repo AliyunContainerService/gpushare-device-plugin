@@ -18,13 +18,14 @@ spec:
       nodeSelector:
         gpushare: "true"
       containers:
-      - image: registry.cn-hangzhou.aliyuncs.com/acs/k8s-gpushare-plugin:v2-1.11-f1e3cd6
+      - image: registry.cn-hangzhou.aliyuncs.com/acs/k8s-gpushare-plugin:v2-1.11-315c638
         name: gpushare
         # Make this pod as Guaranteed pod which will never be evicted because of node's resource consumption.
         command:
           - gpushare-device-plugin-v2
           - -logtostderr
           - --v=5
+          - --memory-unit=GiB
         resources:
           limits:
             memory: "300Mi"
