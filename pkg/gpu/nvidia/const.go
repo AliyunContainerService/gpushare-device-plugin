@@ -30,6 +30,6 @@ const (
 	EnvResourceAssumeTime  = "ALIYUN_COM_GPU_MEM_ASSUME_TIME"
 	EnvResourceAssignTime  = "ALIYUN_COM_GPU_MEM_ASSIGN_TIME"
 
-	GiBPrefix = MemoryUnit("Gi")
-	MiBPrefix = MemoryUnit("Mi")
+	GiBPrefix = MemoryUnit("GiB")
+	MiBPrefix = MemoryUnit("MiB")
 )
