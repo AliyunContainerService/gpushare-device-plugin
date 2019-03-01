@@ -11,7 +11,7 @@ spec:
         image: alpine:3.6
         resources:
             limits:
-              # MiB
-              aliyun.com/gpu-mem: 8076
+              # GiB
+              aliyun.com/gpu-mem: 2
         command: ["sleep","30s"]
       restartPolicy: Never

@@ -12,7 +12,10 @@ import (
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
-var gpuMemory uint
+var (
+	gpuMemory uint
+	metric    MemoryUnit
+)
 
 func check(err error) {
 	if err != nil {
@@ -26,6 +29,15 @@ func generateFakeDeviceID(realID string, fakeCounter uint) string {
 
 func extractRealDeviceID(fakeDeviceID string) string {
 	return strings.Split(fakeDeviceID, "-_-")[0]
+}
+
+func setGPUMemory(raw uint) {
+	v := raw
+	if metric == GiBPrefix {
+		v = raw / 1024
+	}
+	gpuMemory = v
+	log.Infof("set gpu memory: %d", gpuMemory)
 }
 
 func getGPUMemory() uint {
@@ -56,7 +68,7 @@ func getDevices() ([]*pluginapi.Device, map[string]uint) {
 		// var KiB uint64 = 1024
 		log.Infof("# device Memory: %d", uint(*d.Memory))
 		if getGPUMemory() == uint(0) {
-			gpuMemory = uint(*d.Memory)
+			setGPUMemory(uint(*d.Memory))
 		}
 		for j := uint(0); j < getGPUMemory(); j++ {
 			fakeID := generateFakeDeviceID(d.UUID, j)
