@@ -22,7 +22,13 @@ func displayDetails(nodeInfos []*NodeInfo) {
 	for _, nodeInfo := range nodeInfos {
 		address := "unknown"
 		if len(nodeInfo.node.Status.Addresses) > 0 {
-			address = nodeInfo.node.Status.Addresses[0].Address
+			//address = nodeInfo.node.Status.Addresses[0].Address
+			for _, addr := range nodeInfo.node.Status.Addresses {
+				if addr.Type == v1.NodeInternalIP {
+					address = addr.Address
+					break
+				}
+			}
 		}
 
 		totalGPUMemInNode := nodeInfo.gpuTotalMemory
