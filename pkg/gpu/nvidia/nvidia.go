@@ -97,7 +97,7 @@ func deviceExists(devs []*pluginapi.Device, id string) bool {
 	return false
 }
 
-func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *pluginapi.Device) {
+func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *pluginapi.Device, devNameMap map[string]uint) {
 	eventSet := nvml.NewEventSet()
 	defer nvml.DeleteEventSet(eventSet)
 
@@ -135,15 +135,30 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 			continue
 		}
 
+		var devIdArray []uint
 		if e.UUID == nil || len(*e.UUID) == 0 {
 			// All devices are unhealthy
 			for _, d := range devs {
 				xids <- d
 			}
+
+			for _, v := range devNameMap {
+				devIdArray = append(devIdArray, v)
+			}
+
+			patchGPUUnhealthyStatus(devIdArray)
 			continue
 		}
 
+		val, ok := devNameMap[*e.UUID]
+		if ok {
+			patchGPUUnhealthyStatus(append(devIdArray, val))
+		} else {
+			log.Errorf("Unknown UUID %s", *e.UUID)
+		}
+
 		for _, d := range devs {
+
 			if extractRealDeviceID(d.ID) == *e.UUID {
 				xids <- d
 			}
