@@ -97,7 +97,7 @@ func patchGPUUnhealthyStatus(array []uint) error {
 	}
 	newNode := node.DeepCopy()
 	for _, val := range array {
-		newNode.Status.Allocatable[v1.ResourceName(fmt.Sprintf("%s%u", resourceStatus, val))] =
+		newNode.Status.Allocatable[v1.ResourceName(fmt.Sprintf("%s%d", resourceStatus, val))] =
 			*resource.NewQuantity(0, resource.DecimalSI)
 	}
 	_, _, err = nodeutil.PatchNodeStatus(clientset.CoreV1(), types.NodeName(nodeName), node, newNode)
