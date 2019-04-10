@@ -1,5 +1,6 @@
 # GPU Sharing Device Plugin in Kuberntes 
 
+[![CircleCI](https://circleci.com/gh/AliyunContainerService/gpushare-device-plugin.svg?style=svg)](https://circleci.com/gh/AliyunContainerService/gpushare-device-plugin)
 [![Build Status](https://travis-ci.org/AliyunContainerService/gpushare-device-plugin.svg?branch=master)](https://travis-ci.org/AliyunContainerService/gpushare-device-plugin) 
 [![Go Report Card](https://goreportcard.com/badge/github.com/AliyunContainerService/gpushare-device-plugin)](https://goreportcard.com/report/github.com/AliyunContainerService/gpushare-device-plugin)
 
