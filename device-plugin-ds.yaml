@@ -25,6 +25,8 @@ spec:
           - gpushare-device-plugin-v2
           - -logtostderr
           - --v=5
+        # - --mps-pipe=/root/nvidia-mps  // mps-client and mps-server communicate through the directory.You can modify it.
+        # - --mps=true     //if you want to use mps
           - --memory-unit=GiB
         resources:
           limits:
