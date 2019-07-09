@@ -15,6 +15,7 @@ import (
 var (
 	gpuMemory uint
 	metric    MemoryUnit
+	gpuType   string
 )
 
 func check(err error) {
@@ -44,6 +45,16 @@ func getGPUMemory() uint {
 	return gpuMemory
 }
 
+func setGPUType(raw string) {
+	v := strings.Replace(raw, " ", "_", -1)
+	gpuType = v
+	log.Infof("set gpu type: %s", gpuType)
+}
+
+func getGPUType() string {
+	return gpuType
+}
+
 func getDeviceCount() uint {
 	n, err := nvml.GetDeviceCount()
 	check(err)
@@ -69,6 +80,7 @@ func getDevices() ([]*pluginapi.Device, map[string]uint) {
 		log.Infof("# device Memory: %d", uint(*d.Memory))
 		if getGPUMemory() == uint(0) {
 			setGPUMemory(uint(*d.Memory))
+			setGPUType(string(*d.Model))
 		}
 		for j := uint(0); j < getGPUMemory(); j++ {
 			fakeID := generateFakeDeviceID(d.UUID, j)

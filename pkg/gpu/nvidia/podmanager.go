@@ -84,6 +84,30 @@ func patchGPUCount(gpuCount int) error {
 	return err
 }
 
+func patchGPUType(gpuType string) error {
+	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if val, ok := node.Labels[resourceType]; ok {
+		if val == gpuType {
+			log.Infof("No need to update Capacity %s", resourceType)
+			return nil
+		}
+	}
+
+	newNode := node.DeepCopy()
+	newNode.Labels[resourceType] = gpuType
+	_, _, err = nodeutil.PatchNodeStatus(clientset.CoreV1(), types.NodeName(nodeName), node, newNode)
+	if err != nil {
+		log.Infof("Failed to update Capacity %s.", resourceType)
+	} else {
+		log.Infof("Updated Capacity %s successfully.", resourceType)
+	}
+	return err
+}
+
 func getPendingPodsInNode() ([]v1.Pod, error) {
 	// pods, err := m.lister.List(labels.Everything())
 	// if err != nil {
