@@ -22,6 +22,7 @@ type NvidiaDevicePlugin struct {
 	devIndxMap   map[uint]string
 	socket       string
 	mps          bool
+	mpspipe      string
 	healthCheck  bool
 
 	stop   chan struct{}
@@ -32,7 +33,7 @@ type NvidiaDevicePlugin struct {
 }
 
 // NewNvidiaDevicePlugin returns an initialized NvidiaDevicePlugin
-func NewNvidiaDevicePlugin(mps, healthCheck bool) *NvidiaDevicePlugin {
+func NewNvidiaDevicePlugin(mps, healthCheck bool, mpspipe string) *NvidiaDevicePlugin {
 	devs, devNameMap := getDevices()
 	devList := []string{}
 
@@ -54,10 +55,10 @@ func NewNvidiaDevicePlugin(mps, healthCheck bool) *NvidiaDevicePlugin {
 		devNameMap:   devNameMap,
 		socket:       serverSock,
 		mps:          mps,
+		mpspipe:      mpspipe,
 		healthCheck:  healthCheck,
-
-		stop:   make(chan struct{}),
-		health: make(chan *pluginapi.Device),
+		stop:         make(chan struct{}),
+		health:       make(chan *pluginapi.Device),
 	}
 }
 

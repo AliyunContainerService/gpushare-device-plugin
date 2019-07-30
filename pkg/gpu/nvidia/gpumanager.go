@@ -14,13 +14,15 @@ import (
 type sharedGPUManager struct {
 	enableMPS   bool
 	healthCheck bool
+	mpspipe     string
 }
 
-func NewSharedGPUManager(enableMPS, healthCheck bool, bp MemoryUnit) *sharedGPUManager {
+func NewSharedGPUManager(enableMPS, healthCheck bool, mpspipe string, bp MemoryUnit) *sharedGPUManager {
 	metric = bp
 	return &sharedGPUManager{
 		enableMPS:   enableMPS,
 		healthCheck: healthCheck,
+		mpspipe:     mpspipe,
 	}
 }
 
@@ -61,7 +63,7 @@ L:
 				devicePlugin.Stop()
 			}
 
-			devicePlugin = NewNvidiaDevicePlugin(ngm.enableMPS, ngm.healthCheck)
+			devicePlugin = NewNvidiaDevicePlugin(ngm.enableMPS, ngm.healthCheck, ngm.mpspipe)
 			if err := devicePlugin.Serve(); err != nil {
 				log.Warningf("Failed to start device plugin due to %v", err)
 			} else {
