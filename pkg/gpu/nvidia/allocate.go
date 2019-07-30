@@ -21,17 +21,21 @@ func init() {
 	kubeInit()
 }
 
-func buildErrResponse(reqs *pluginapi.AllocateRequest, podReqGPU uint) *pluginapi.AllocateResponse {
+func (m *NvidiaDevicePlugin) buildErrResponse(reqs *pluginapi.AllocateRequest, podReqGPU uint) *pluginapi.AllocateResponse {
 	responses := pluginapi.AllocateResponse{}
 	for _, req := range reqs.ContainerRequests {
 		response := pluginapi.ContainerAllocateResponse{
 			Envs: map[string]string{
-				envNVGPU:               fmt.Sprintf("no-gpu-has-%dMiB-to-run", podReqGPU),
+				envNVGPU:               fmt.Sprintf("no-gpu-has-%dGiB-to-run", podReqGPU),
 				EnvResourceIndex:       fmt.Sprintf("-1"),
 				EnvResourceByPod:       fmt.Sprintf("%d", podReqGPU),
 				EnvResourceByContainer: fmt.Sprintf("%d", uint(len(req.DevicesIDs))),
 				EnvResourceByDev:       fmt.Sprintf("%d", getGPUMemory()),
 			},
+		}
+		if m.mps {
+			response.Envs[EnvMPSActiveThreadPercentage] = fmt.Sprintf("%d", 100*uint(len(req.DevicesIDs))/getGPUMemory())
+			response.Envs[EnvMPSPipeDirectory] = fmt.Sprintf(m.mpspipe)
 		}
 		responses.ContainerResponses = append(responses.ContainerResponses, &response)
 	}
@@ -62,7 +66,7 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 	pods, err := getCandidatePods()
 	if err != nil {
 		log.Infof("invalid allocation requst: Failed to find candidate pods due to %v", err)
-		return buildErrResponse(reqs, podReqGPU), nil
+		return m.buildErrResponse(reqs, podReqGPU), nil
 	}
 
 	if log.V(4) {
@@ -106,7 +110,7 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 		}
 
 		if id < 0 {
-			return buildErrResponse(reqs, podReqGPU), nil
+			return m.buildErrResponse(reqs, podReqGPU), nil
 		}
 
 		// 1. Create container requests
@@ -121,6 +125,15 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 					EnvResourceByDev:       fmt.Sprintf("%d", getGPUMemory()),
 				},
 			}
+			if m.mps {
+				response.Envs[EnvMPSActiveThreadPercentage] = fmt.Sprintf("%d", 100*reqGPU/getGPUMemory())
+				response.Envs[EnvMPSPipeDirectory] = fmt.Sprintf(m.mpspipe)
+				mount := pluginapi.Mount{
+					ContainerPath: m.mpspipe,
+					HostPath:      m.mpspipe,
+				}
+				response.Mounts = append(response.Mounts, &mount)
+			}
 			responses.ContainerResponses = append(responses.ContainerResponses, &response)
 		}
 
@@ -134,17 +147,17 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 				pod, err := clientset.CoreV1().Pods(assumePod.Namespace).Get(assumePod.Name, metav1.GetOptions{})
 				if err != nil {
 					log.Warningf("Failed due to %v", err)
-					return buildErrResponse(reqs, podReqGPU), nil
+					return m.buildErrResponse(reqs, podReqGPU), nil
 				}
 				newPod = updatePodAnnotations(pod)
 				_, err = clientset.CoreV1().Pods(newPod.Namespace).Update(newPod)
 				if err != nil {
 					log.Warningf("Failed due to %v", err)
-					return buildErrResponse(reqs, podReqGPU), nil
+					return m.buildErrResponse(reqs, podReqGPU), nil
 				}
 			} else {
 				log.Warningf("Failed due to %v", err)
-				return buildErrResponse(reqs, podReqGPU), nil
+				return m.buildErrResponse(reqs, podReqGPU), nil
 			}
 		}
 
@@ -152,7 +165,7 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 		log.Warningf("invalid allocation requst: request GPU memory %d can't be satisfied.",
 			podReqGPU)
 		// return &responses, fmt.Errorf("invalid allocation requst: request GPU memory %d can't be satisfied", reqGPU)
-		return buildErrResponse(reqs, podReqGPU), nil
+		return m.buildErrResponse(reqs, podReqGPU), nil
 	}
 
 	log.Infof("new allocated GPUs info %v", &responses)
