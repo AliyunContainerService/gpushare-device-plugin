@@ -61,8 +61,10 @@ L:
 				devicePlugin.Stop()
 			}
 
-			devicePlugin = NewNvidiaDevicePlugin(ngm.enableMPS, ngm.healthCheck)
-			if err := devicePlugin.Serve(); err != nil {
+			devicePlugin, err = NewNvidiaDevicePlugin(ngm.enableMPS, ngm.healthCheck)
+			if err != nil {
+				log.Warningf("Failed to get device plugin due to %v", err)
+			} else if err = devicePlugin.Serve(); err != nil {
 				log.Warningf("Failed to start device plugin due to %v", err)
 			} else {
 				restart = false
