@@ -8,7 +8,7 @@ RUN export CGO_LDFLAGS_ALLOW='-Wl,--unresolved-symbols=ignore-in-object-files' &
 
 RUN go build -o /go/bin/kubectl-inspect-gpushare-v2 cmd/inspect/*.go
 
-FROM debian:stretch-slim
+FROM debian:bullseye-slim
 
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=utility
