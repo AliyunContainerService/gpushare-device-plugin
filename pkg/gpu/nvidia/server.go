@@ -32,7 +32,7 @@ type NvidiaDevicePlugin struct {
 }
 
 // NewNvidiaDevicePlugin returns an initialized NvidiaDevicePlugin
-func NewNvidiaDevicePlugin(mps, healthCheck bool) *NvidiaDevicePlugin {
+func NewNvidiaDevicePlugin(mps, healthCheck bool) (*NvidiaDevicePlugin, error) {
 	devs, devNameMap := getDevices()
 	devList := []string{}
 
@@ -45,7 +45,7 @@ func NewNvidiaDevicePlugin(mps, healthCheck bool) *NvidiaDevicePlugin {
 
 	err := patchGPUCount(len(devList))
 	if err != nil {
-		log.Infof("Failed due to %v", err)
+		return nil, err
 	}
 
 	return &NvidiaDevicePlugin{
@@ -58,7 +58,7 @@ func NewNvidiaDevicePlugin(mps, healthCheck bool) *NvidiaDevicePlugin {
 
 		stop:   make(chan struct{}),
 		health: make(chan *pluginapi.Device),
-	}
+	}, nil
 }
 
 func (m *NvidiaDevicePlugin) GetDeviceNameByIndex(index uint) (name string, found bool) {
