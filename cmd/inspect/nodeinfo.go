@@ -93,10 +93,10 @@ func getGPUCountInNode(node v1.Node) int {
 
 func buildNodeInfoWithPods(pods []v1.Pod, nodes []v1.Node) []*NodeInfo {
 	nodeMap := map[string]*NodeInfo{}
-	nodeList := []*NodeInfo{}
+	var nodeList []*NodeInfo
 
 	for _, node := range nodes {
-		var info *NodeInfo = &NodeInfo{}
+		var info = &NodeInfo{}
 		if value, ok := nodeMap[node.Name]; ok {
 			info = value
 		} else {

@@ -48,6 +48,11 @@ func NewNvidiaDevicePlugin(mps, healthCheck bool) (*NvidiaDevicePlugin, error) {
 		return nil, err
 	}
 
+	err2 := patchGPUType(getGPUType())
+	if err2 != nil {
+		log.Infof("Failed due to %v", err2)
+	}
+
 	return &NvidiaDevicePlugin{
 		devs:         devs,
 		realDevNames: devList,

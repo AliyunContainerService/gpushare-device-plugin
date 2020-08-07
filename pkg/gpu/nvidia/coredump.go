@@ -26,5 +26,5 @@ func StackTrace(all bool) string {
 
 func coredump(fileName string) {
 	log.Infoln("Dump stacktrace to ", fileName)
-	ioutil.WriteFile(fileName, []byte(StackTrace(true)), 0644)
+	_ = ioutil.WriteFile(fileName, []byte(StackTrace(true)), 0644)
 }
