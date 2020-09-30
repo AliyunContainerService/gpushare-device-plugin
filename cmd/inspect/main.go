@@ -31,7 +31,8 @@ func main() {
 	var nodeName string
 	// nodeName := flag.String("nodeName", "", "nodeName")
 	details := flag.Bool("d", false, "details")
-	metrics := flag.Bool("m", false, "metrics")
+	metrics := flag.Bool("m", false, "run as metric exporter")
+	listenPort := flag.Int("p", 8080, "metric listen port")
 	flag.Parse()
 
 	args := flag.Args()
@@ -68,7 +69,7 @@ func main() {
 	if *details {
 		displayDetails(nodeInfos)
 	} else if *metrics {
-		exposeMetrics()
+		exposeMetrics(*listenPort)
 	} else {
 		displaySummary(nodeInfos)
 	}

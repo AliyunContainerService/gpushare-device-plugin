@@ -18,8 +18,6 @@ func recordMetrics() {
 	go func() {
 		for {
 			var nodeName string
-			// nodeName := flag.String("nodeName", "", "nodeName")
-
 			var pods []v1.Pod
 			var nodes []v1.Node
 			var err error
@@ -40,8 +38,6 @@ func recordMetrics() {
 				fmt.Printf("Failed due to %v", err)
 				os.Exit(1)
 			}
-			//gpuMemoryPodAllocated.With(prometheus.Labels{"type": "delete", "user": "alice"}).Inc()
-			//gpuMemoryPodAllocated.WithLabelValues("za-zte-k8s-gpu-62.10", "10.50.62.10", "zcommmedia", "gpu-resize", "gpu1").Set(2)
 			nodeInfos, err := buildAllNodeInfos(pods, nodes)
 			gpuMemoryPodAllocated.Reset()
 			writeMetricToGaugeVec(nodeInfos)
@@ -57,7 +53,6 @@ var (
 			Subsystem: "gpushare",
 			Name:      "memory_allocated",
 			Help:      "How much memory was allocated for a pod, memory unit .",
-			//ConstLabels: prometheus.Labels{"binary_version": "123"},
 		},
 		[]string{
 			// Collect by node hostname and ip address
@@ -79,20 +74,15 @@ func init() {
 	prometheus.MustRegister(gpuMemoryPodAllocated)
 }
 
-func exposeMetrics() {
+func exposeMetrics(listenPort int) {
 	recordMetrics()
-	//writeMetricToGaugeVec(nodeInfos)
 	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(":2112", nil))
+	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(listenPort), nil))
 }
 
 func writeMetricToGaugeVec(nodeInfos []*NodeInfo) {
-	//w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var (
-		// totalGPUMemInCluster int64
-		// usedGPUMemInCluster int64
 		gpuDeviceID string
-		// prtLineLen  int
 	)
 
 	for _, nodeInfo := range nodeInfos {
@@ -106,29 +96,7 @@ func writeMetricToGaugeVec(nodeInfos []*NodeInfo) {
 				}
 			}
 		}
-
-		// totalGPUMemInNode := nodeInfo.gpuTotalMemory
-		// if totalGPUMemInNode <= 0 {
-		// 	continue
-		// }
-
-		// fmt.Fprintf(w, "\n")
-		// fmt.Fprintf(w, "NAME:\t%s\n", nodeInfo.node.Name)
-		// fmt.Fprintf(w, "IPADDRESS:\t%s\n", address)
-		// fmt.Fprintf(w, "\n")
-
 		usedGPUMemInNode := 0
-		// var buf bytes.Buffer
-		// buf.WriteString("NAME\tNAMESPACE\t")
-		// for i := 0; i < nodeInfo.gpuCount; i++ {
-		// 	buf.WriteString(fmt.Sprintf("GPU%d(Allocated)\t", i))
-		// }
-
-		// if nodeInfo.hasPendingGPUMemory() {
-		// 	buf.WriteString("Pending(Allocated)\t")
-		// }
-		// buf.WriteString("\n")
-		// fmt.Fprintf(w, buf.String())
 
 		var buffer bytes.Buffer
 		for i, dev := range nodeInfo.devs {
@@ -143,8 +111,7 @@ func writeMetricToGaugeVec(nodeInfos []*NodeInfo) {
 
 				for k := 0; k < count; k++ {
 					if k == i || (i == -1 && k == nodeInfo.gpuCount) {
-						gpuDeviceID = "gpu" + strconv.FormatInt(int64(k), 10)
-						// buffer.WriteString(fmt.Sprintf("%d\t", getGPUMemoryInPod(pod)))
+						gpuDeviceID = "GPU " + strconv.Itoa(k)
 					} else {
 						continue
 						//gpuDeviceID = ""
@@ -156,45 +123,5 @@ func writeMetricToGaugeVec(nodeInfos []*NodeInfo) {
 				buffer.WriteString("\n")
 			}
 		}
-		// if prtLineLen == 0 {
-		// 	prtLineLen = buffer.Len() + 10
-		// }
-		// fmt.Fprintf(w, buffer.String())
-
-		// var gpuUsageInNode float64 = 0
-		// if totalGPUMemInNode > 0 {
-		// 	gpuUsageInNode = float64(usedGPUMemInNode) / float64(totalGPUMemInNode) * 100
-		// } else {
-		// 	fmt.Fprintf(w, "\n")
-		// }
-
-		// fmt.Fprintf(w, "Allocated :\t%d (%d%%)\t\n", usedGPUMemInNode, int64(gpuUsageInNode))
-		// fmt.Fprintf(w, "Total :\t%d \t\n", nodeInfo.gpuTotalMemory)
-		// // fmt.Fprintf(w, "-----------------------------------------------------------------------------------------\n")
-		// var prtLine bytes.Buffer
-		// for i := 0; i < prtLineLen; i++ {
-		// 	prtLine.WriteString("-")
-		// }
-		// prtLine.WriteString("\n")
-		// fmt.Fprintf(w, prtLine.String())
-		//		totalGPUMemInCluster += int64(totalGPUMemInNode)
-		//		usedGPUMemInCluster += int64(usedGPUMemInNode)
-		// }
-		// fmt.Fprintf(w, "\n")
-		// fmt.Fprintf(w, "\n")
-		// fmt.Fprintf(w, "Allocated/Total GPU Memory In Cluster:\t")
-		//log.V(2).Infof("gpu: %s, allocated GPU Memory %s", strconv.FormatInt(totalGPUMemInCluster, 10),strconv.FormatInt(usedGPUMemInCluster, 10))
-
-		// var gpuUsage float64 = 0
-		// if totalGPUMemInCluster > 0 {
-		// 	gpuUsage = float64(usedGPUMemInCluster) / float64(totalGPUMemInCluster) * 100
-		// }
-		// fmt.Fprintf(w, "%s/%s (%d%%)\t\n",
-		// 	strconv.FormatInt(usedGPUMemInCluster, 10),
-		// 	strconv.FormatInt(totalGPUMemInCluster, 10),
-		// 	int64(gpuUsage))
-		// fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", ...)
-
-		// _ = w.Flush()
 	}
 }
