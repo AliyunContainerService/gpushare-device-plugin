@@ -68,7 +68,7 @@ func main() {
 	if *details {
 		displayDetails(nodeInfos)
 	} else if *metrics {
-		writeMetricToGaugeVec(nodeInfos)
+		exposeMetrics()
 	} else {
 		displaySummary(nodeInfos)
 	}

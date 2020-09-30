@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"text/tabwriter"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -17,8 +17,35 @@ import (
 func recordMetrics() {
 	go func() {
 		for {
+			var nodeName string
+			// nodeName := flag.String("nodeName", "", "nodeName")
+
+			var pods []v1.Pod
+			var nodes []v1.Node
+			var err error
+
+			if nodeName == "" {
+				nodes, err = getAllSharedGPUNode()
+				if err == nil {
+					pods, err = getActivePodsInAllNodes()
+				}
+			} else {
+				nodes, err = getNodes(nodeName)
+				if err == nil {
+					pods, err = getActivePodsByNode(nodeName)
+				}
+			}
+
+			if err != nil {
+				fmt.Printf("Failed due to %v", err)
+				os.Exit(1)
+			}
 			//gpuMemoryPodAllocated.With(prometheus.Labels{"type": "delete", "user": "alice"}).Inc()
-			gpuMemoryPodAllocated.WithLabelValues("za-zte-k8s-gpu-62.10", "10.50.62.10", "zcommmedia", "gpu-resize", "gpu1").Set(2)
+			//gpuMemoryPodAllocated.WithLabelValues("za-zte-k8s-gpu-62.10", "10.50.62.10", "zcommmedia", "gpu-resize", "gpu1").Set(2)
+			nodeInfos, err := buildAllNodeInfos(pods, nodes)
+			gpuMemoryPodAllocated.Reset()
+			writeMetricToGaugeVec(nodeInfos)
+			time.Sleep(15 * time.Second)
 		}
 	}()
 }
@@ -54,12 +81,13 @@ func init() {
 
 func exposeMetrics() {
 	recordMetrics()
+	//writeMetricToGaugeVec(nodeInfos)
 	http.Handle("/metrics", promhttp.Handler())
 	log.Fatal(http.ListenAndServe(":2112", nil))
 }
 
 func writeMetricToGaugeVec(nodeInfos []*NodeInfo) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	//w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var (
 		// totalGPUMemInCluster int64
 		// usedGPUMemInCluster int64
@@ -115,13 +143,15 @@ func writeMetricToGaugeVec(nodeInfos []*NodeInfo) {
 
 				for k := 0; k < count; k++ {
 					if k == i || (i == -1 && k == nodeInfo.gpuCount) {
-						gpuDeviceID = strconv.FormatInt(int64(k), 10)
+						gpuDeviceID = "gpu" + strconv.FormatInt(int64(k), 10)
 						// buffer.WriteString(fmt.Sprintf("%d\t", getGPUMemoryInPod(pod)))
 					} else {
-						gpuDeviceID = ""
+						continue
+						//gpuDeviceID = ""
 						// buffer.WriteString("0\t")
 					}
 					gpuMemoryPodAllocated.WithLabelValues(nodeInfo.node.Name, address, pod.Namespace, pod.Name, gpuDeviceID).Set(float64(getGPUMemoryInPod(pod)))
+					fmt.Println(nodeInfo.node.Name, address, pod.Namespace, pod.Name, gpuDeviceID, float64(getGPUMemoryInPod(pod)))
 				}
 				buffer.WriteString("\n")
 			}
@@ -165,6 +195,6 @@ func writeMetricToGaugeVec(nodeInfos []*NodeInfo) {
 		// 	int64(gpuUsage))
 		// fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", ...)
 
-		_ = w.Flush()
+		// _ = w.Flush()
 	}
 }
