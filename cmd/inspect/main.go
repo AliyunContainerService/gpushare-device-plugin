@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -31,6 +31,7 @@ func main() {
 	var nodeName string
 	// nodeName := flag.String("nodeName", "", "nodeName")
 	details := flag.Bool("d", false, "details")
+	metrics := flag.Bool("m", false, "metrics")
 	flag.Parse()
 
 	args := flag.Args()
@@ -66,8 +67,9 @@ func main() {
 	}
 	if *details {
 		displayDetails(nodeInfos)
+	} else if *metrics {
+		writeMetricToGaugeVec(nodeInfos)
 	} else {
 		displaySummary(nodeInfos)
 	}
-
 }

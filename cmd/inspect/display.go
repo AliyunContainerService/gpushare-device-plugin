@@ -8,7 +8,7 @@ import (
 	"text/tabwriter"
 
 	log "github.com/golang/glog"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 func displayDetails(nodeInfos []*NodeInfo) {
@@ -62,7 +62,7 @@ func displayDetails(nodeInfos []*NodeInfo) {
 				buffer.WriteString(fmt.Sprintf("%s\t%s\t", pod.Name, pod.Namespace))
 				count := nodeInfo.gpuCount
 				if nodeInfo.hasPendingGPUMemory() {
-					count += 1
+					count++
 				}
 
 				for k := 0; k < count; k++ {
