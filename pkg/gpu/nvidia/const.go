@@ -21,14 +21,15 @@ const (
 	containerLogPathLabelKey    = "io.kubernetes.container.logpath"
 	sandboxIDLabelKey           = "io.kubernetes.sandbox.id"
 
-	envNVGPU               = "NVIDIA_VISIBLE_DEVICES"
-	EnvResourceIndex       = "ALIYUN_COM_GPU_MEM_IDX"
-	EnvResourceByPod       = "ALIYUN_COM_GPU_MEM_POD"
-	EnvResourceByContainer = "ALIYUN_COM_GPU_MEM_CONTAINER"
-	EnvResourceByDev       = "ALIYUN_COM_GPU_MEM_DEV"
-	EnvAssignedFlag        = "ALIYUN_COM_GPU_MEM_ASSIGNED"
-	EnvResourceAssumeTime  = "ALIYUN_COM_GPU_MEM_ASSUME_TIME"
-	EnvResourceAssignTime  = "ALIYUN_COM_GPU_MEM_ASSIGN_TIME"
+	envNVGPU                   = "NVIDIA_VISIBLE_DEVICES"
+	EnvResourceIndex           = "ALIYUN_COM_GPU_MEM_IDX"
+	EnvResourceByPod           = "ALIYUN_COM_GPU_MEM_POD"
+	EnvResourceByContainer     = "ALIYUN_COM_GPU_MEM_CONTAINER"
+	EnvResourceByDev           = "ALIYUN_COM_GPU_MEM_DEV"
+	EnvAssignedFlag            = "ALIYUN_COM_GPU_MEM_ASSIGNED"
+	EnvResourceAssumeTime      = "ALIYUN_COM_GPU_MEM_ASSUME_TIME"
+	EnvResourceAssignTime      = "ALIYUN_COM_GPU_MEM_ASSIGN_TIME"
+	EnvNodeLabelForDisableCGPU = "cgpu.disable.isolation"
 
 	GiBPrefix = MemoryUnit("GiB")
 	MiBPrefix = MemoryUnit("MiB")
