@@ -57,6 +57,21 @@ func kubeInit() {
 
 }
 
+func disableCGPUIsolationOrNot() (bool, error) {
+    disable := false
+    node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+    if err != nil {
+        return disable, err
+    }
+    labels := node.ObjectMeta.Labels
+    value, ok := labels[EnvNodeLabelForDisableCGPU]
+    if ok && value == "true" {
+        log.Infof("enable gpusharing mode and disable cgpu mode")
+        disable = true
+    }
+    return disable, nil
+}
+
 func patchGPUCount(gpuCount int) error {
 	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 	if err != nil {

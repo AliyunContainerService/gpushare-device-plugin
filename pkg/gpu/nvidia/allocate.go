@@ -121,6 +121,9 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 					EnvResourceByDev:       fmt.Sprintf("%d", getGPUMemory()),
 				},
 			}
+            if m.disableCGPUIsolation {
+                response.Envs["CGPU_DISABLE"] = "true"
+            }
 			responses.ContainerResponses = append(responses.ContainerResponses, &response)
 		}
 

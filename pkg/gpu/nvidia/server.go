@@ -16,16 +16,16 @@ import (
 
 // NvidiaDevicePlugin implements the Kubernetes device plugin API
 type NvidiaDevicePlugin struct {
-	devs         []*pluginapi.Device
-	realDevNames []string
-	devNameMap   map[string]uint
-	devIndxMap   map[uint]string
-	socket       string
-	mps          bool
-	healthCheck  bool
-
-	stop   chan struct{}
-	health chan *pluginapi.Device
+	devs                 []*pluginapi.Device
+	realDevNames         []string
+	devNameMap           map[string]uint
+	devIndxMap           map[uint]string
+	socket               string
+	mps                  bool
+	healthCheck          bool
+	disableCGPUIsolation bool
+	stop                 chan struct{}
+	health               chan *pluginapi.Device
 
 	server *grpc.Server
 	sync.RWMutex
@@ -47,17 +47,20 @@ func NewNvidiaDevicePlugin(mps, healthCheck bool) (*NvidiaDevicePlugin, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	disableCGPUIsolation, err := disableCGPUIsolationOrNot()
+	if err != nil {
+		return nil, err
+	}
 	return &NvidiaDevicePlugin{
-		devs:         devs,
-		realDevNames: devList,
-		devNameMap:   devNameMap,
-		socket:       serverSock,
-		mps:          mps,
-		healthCheck:  healthCheck,
-
-		stop:   make(chan struct{}),
-		health: make(chan *pluginapi.Device),
+		devs:                 devs,
+		realDevNames:         devList,
+		devNameMap:           devNameMap,
+		socket:               serverSock,
+		mps:                  mps,
+		healthCheck:          healthCheck,
+		disableCGPUIsolation: disableCGPUIsolation,
+		stop:                 make(chan struct{}),
+		health:               make(chan *pluginapi.Device),
 	}, nil
 }
 
