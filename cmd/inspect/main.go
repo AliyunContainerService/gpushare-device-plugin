@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -17,9 +17,10 @@ const (
 	pluginComponentKey   = "component"
 	pluginComponentValue = "gpushare-device-plugin"
 
-	envNVGPUID        = "ALIYUN_COM_GPU_MEM_IDX"
-	envPodGPUMemory   = "ALIYUN_COM_GPU_MEM_POD"
-	envTOTALGPUMEMORY = "ALIYUN_COM_GPU_MEM_DEV"
+	envNVGPUID             = "ALIYUN_COM_GPU_MEM_IDX"
+	envPodGPUMemory        = "ALIYUN_COM_GPU_MEM_POD"
+	envTOTALGPUMEMORY      = "ALIYUN_COM_GPU_MEM_DEV"
+	gpushareAllocationFlag = "scheduler.framework.gpushare.allocation"
 )
 
 func init() {

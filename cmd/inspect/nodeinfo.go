@@ -1,13 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 
 	log "github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 type DeviceInfo struct {
@@ -139,43 +140,39 @@ func (n *NodeInfo) hasPendingGPUMemory() bool {
 
 // Get used GPUs in checkpoint
 func (n *NodeInfo) buildDeviceInfo() error {
-
+	totalGPUMem := 0
+	if n.gpuCount > 0 {
+		totalGPUMem = n.gpuTotalMemory / n.gpuCount
+	}
 GPUSearchLoop:
 	for _, pod := range n.pods {
 		if gpuMemoryInPod(pod) <= 0 {
 			continue GPUSearchLoop
 		}
-
-		devID, usedGPUMem := n.getDeivceInfo(pod)
-
-		var dev *DeviceInfo
-		ok := false
-		if dev, ok = n.devs[devID]; !ok {
-			totalGPUMem := 0
-			if n.gpuCount > 0 {
-				totalGPUMem = n.gpuTotalMemory / n.gpuCount
+		for devID, usedGPUMem := range n.getDeivceInfo(pod) {
+			if n.devs[devID] == nil {
+				n.devs[devID] = &DeviceInfo{
+					pods:        []v1.Pod{},
+					idx:         devID,
+					totalGPUMem: totalGPUMem,
+					node:        n.node,
+				}
 			}
-
-			dev = &DeviceInfo{
-				pods:        []v1.Pod{},
-				idx:         devID,
-				totalGPUMem: totalGPUMem,
-				node:        n.node,
-			}
-			n.devs[devID] = dev
+			n.devs[devID].usedGPUMem += usedGPUMem
+			n.devs[devID].pods = append(n.devs[devID].pods, pod)
 		}
-
-		dev.usedGPUMem = dev.usedGPUMem + usedGPUMem
-		dev.pods = append(dev.pods, pod)
 	}
-
 	return nil
 }
 
-func (n *NodeInfo) getDeivceInfo(pod v1.Pod) (devIdx int, gpuMemory int) {
+func (n *NodeInfo) getDeivceInfo(pod v1.Pod) map[int]int {
 	var err error
 	id := -1
-
+	allocation := map[int]int{}
+	allocation = GetAllocation(&pod)
+	if len(allocation) != 0 {
+		return allocation
+	}
 	if len(pod.ObjectMeta.Annotations) > 0 {
 		value, found := pod.ObjectMeta.Annotations[envNVGPUID]
 		if found {
@@ -194,8 +191,8 @@ func (n *NodeInfo) getDeivceInfo(pod v1.Pod) (devIdx int, gpuMemory int) {
 				pod.Namespace)
 		}
 	}
-
-	return id, gpuMemoryInPod(pod)
+	allocation[id] = gpuMemoryInPod(pod)
+	return allocation
 }
 
 func hasPendingGPUMemory(nodeInfos []*NodeInfo) (found bool) {
@@ -243,4 +240,32 @@ func setUnit(gpuMemory, gpuCount int) {
 	} else {
 		memoryUnit = "GiB"
 	}
+}
+func GetAllocation(pod *v1.Pod) map[int]int {
+	podGPUMems := map[int]int{}
+	allocationString := ""
+	if pod.ObjectMeta.Annotations == nil {
+		return podGPUMems
+	}
+	value, ok := pod.ObjectMeta.Annotations[gpushareAllocationFlag]
+	if !ok {
+		return podGPUMems
+	}
+	allocationString = value
+	var allocation map[int]map[string]int
+	err := json.Unmarshal([]byte(allocationString), &allocation)
+	if err != nil {
+		return podGPUMems
+	}
+	for _, containerAllocation := range allocation {
+		for id, gpuMem := range containerAllocation {
+			gpuIndex, err := strconv.Atoi(id)
+			if err != nil {
+				log.Errorf("failed to get gpu memory from pod annotation,reason: %v", err)
+				return map[int]int{}
+			}
+			podGPUMems[gpuIndex] += gpuMem
+		}
+	}
+	return podGPUMems
 }
