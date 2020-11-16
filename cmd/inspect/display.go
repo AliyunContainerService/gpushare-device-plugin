@@ -9,6 +9,7 @@ import (
 
 	log "github.com/golang/glog"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func displayDetails(nodeInfos []*NodeInfo) {
@@ -55,10 +56,13 @@ func displayDetails(nodeInfos []*NodeInfo) {
 		fmt.Fprintf(w, buf.String())
 
 		var buffer bytes.Buffer
+		exists := map[types.UID]bool{}
 		for i, dev := range nodeInfo.devs {
 			usedGPUMemInNode += dev.usedGPUMem
 			for _, pod := range dev.pods {
-
+				if _,ok := exists[pod.UID]; ok {
+					continue 
+				}
 				buffer.WriteString(fmt.Sprintf("%s\t%s\t", pod.Name, pod.Namespace))
 				count := nodeInfo.gpuCount
 				if nodeInfo.hasPendingGPUMemory() {
@@ -66,6 +70,11 @@ func displayDetails(nodeInfos []*NodeInfo) {
 				}
 
 				for k := 0; k < count; k++ {
+					allocation := GetAllocation(&pod) 
+					if len(allocation) != 0 {
+						buffer.WriteString(fmt.Sprintf("%d\t", allocation[k]))
+						continue 
+					}
 					if k == i || (i == -1 && k == nodeInfo.gpuCount) {
 						buffer.WriteString(fmt.Sprintf("%d\t", getGPUMemoryInPod(pod)))
 					} else {
@@ -73,6 +82,7 @@ func displayDetails(nodeInfos []*NodeInfo) {
 					}
 				}
 				buffer.WriteString("\n")
+				exists[pod.UID] = true 
 			}
 		}
 		if prtLineLen == 0 {
