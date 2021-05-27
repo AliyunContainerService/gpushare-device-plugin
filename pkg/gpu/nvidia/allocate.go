@@ -6,8 +6,8 @@ import (
 
 	log "github.com/golang/glog"
 	"golang.org/x/net/context"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
@@ -26,7 +26,7 @@ func buildErrResponse(reqs *pluginapi.AllocateRequest, podReqGPU uint) *pluginap
 	for _, req := range reqs.ContainerRequests {
 		response := pluginapi.ContainerAllocateResponse{
 			Envs: map[string]string{
-				envNVGPU:               fmt.Sprintf("no-gpu-has-%dMiB-to-run", podReqGPU),
+				envNVGPU:               fmt.Sprintf("no-gpu-has-%d%s-to-run", podReqGPU, metric),
 				EnvResourceIndex:       fmt.Sprintf("-1"),
 				EnvResourceByPod:       fmt.Sprintf("%d", podReqGPU),
 				EnvResourceByContainer: fmt.Sprintf("%d", uint(len(req.DevicesIDs))),
@@ -121,26 +121,23 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 					EnvResourceByDev:       fmt.Sprintf("%d", getGPUMemory()),
 				},
 			}
-            if m.disableCGPUIsolation {
-                response.Envs["CGPU_DISABLE"] = "true"
-            }
+			if m.disableCGPUIsolation {
+				response.Envs["CGPU_DISABLE"] = "true"
+			}
 			responses.ContainerResponses = append(responses.ContainerResponses, &response)
 		}
 
 		// 2. Update Pod spec
-		newPod := updatePodAnnotations(assumePod)
-		_, err = clientset.CoreV1().Pods(newPod.Namespace).Update(newPod)
+		patchedAnnotationBytes, err := patchPodAnnotationSpecAssigned()
+		if err != nil {
+			return buildErrResponse(reqs, podReqGPU), nil
+		}
+		_, err = clientset.CoreV1().Pods(assumePod.Namespace).Patch(assumePod.Name, types.StrategicMergePatchType, patchedAnnotationBytes)
 		if err != nil {
 			// the object has been modified; please apply your changes to the latest version and try again
 			if err.Error() == OptimisticLockErrorMsg {
 				// retry
-				pod, err := clientset.CoreV1().Pods(assumePod.Namespace).Get(assumePod.Name, metav1.GetOptions{})
-				if err != nil {
-					log.Warningf("Failed due to %v", err)
-					return buildErrResponse(reqs, podReqGPU), nil
-				}
-				newPod = updatePodAnnotations(pod)
-				_, err = clientset.CoreV1().Pods(newPod.Namespace).Update(newPod)
+				_, err = clientset.CoreV1().Pods(assumePod.Namespace).Patch(assumePod.Name, types.StrategicMergePatchType, patchedAnnotationBytes)
 				if err != nil {
 					log.Warningf("Failed due to %v", err)
 					return buildErrResponse(reqs, podReqGPU), nil

@@ -1,12 +1,13 @@
 package nvidia
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
 
 	log "github.com/golang/glog"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 // update pod env with assigned status
@@ -21,6 +22,16 @@ func updatePodAnnotations(oldPod *v1.Pod) (newPod *v1.Pod) {
 	newPod.ObjectMeta.Annotations[EnvResourceAssumeTime] = fmt.Sprintf("%d", now.UnixNano())
 
 	return newPod
+}
+
+func patchPodAnnotationSpecAssigned() ([]byte, error) {
+	now := time.Now()
+	patchAnnotations := map[string]interface{}{
+		"metadata": map[string]map[string]string{"annotations": {
+			EnvAssignedFlag:       "true",
+			EnvResourceAssumeTime: fmt.Sprintf("%d", now.UnixNano()),
+		}}}
+	return json.Marshal(patchAnnotations)
 }
 
 func getGPUIDFromPodAnnotation(pod *v1.Pod) (id int) {
