@@ -201,7 +201,7 @@ func (m *NvidiaDevicePlugin) healthcheck() {
 	var xids chan *pluginapi.Device
 	if m.healthCheck {
 		xids = make(chan *pluginapi.Device)
-		go watchXIDs(ctx, m.devs, xids)
+		go watchXIDs(ctx, m.devs, xids, m.devNameMap)
 	}
 
 	for {
