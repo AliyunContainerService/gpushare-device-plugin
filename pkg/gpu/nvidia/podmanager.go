@@ -128,7 +128,7 @@ func getPodListsByListAPIServer() (*v1.PodList, error) {
 		FieldSelector: selector.String(),
 		LabelSelector: labels.Everything().String(),
 	})
-	for i := 0; i < retries && err != nil; i++ {
+	for i := 0; i < 3 && err != nil; i++ {
 		podList, err = clientset.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
 			FieldSelector: selector.String(),
 			LabelSelector: labels.Everything().String(),
