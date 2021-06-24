@@ -23,8 +23,8 @@ func check(err error) {
 	}
 }
 
-func generateFakeDeviceID(realID string, fakeCounter uint) string {
-	return fmt.Sprintf("%s-_-%d", realID, fakeCounter)
+func generateFakeDeviceID(realID uint, fakeCounter uint) string {
+	return fmt.Sprintf("FakeID-%d-%d", realID, fakeCounter)
 }
 
 func extractRealDeviceID(fakeDeviceID string) string {
@@ -71,7 +71,7 @@ func getDevices() ([]*pluginapi.Device, map[string]uint) {
 			setGPUMemory(uint(*d.Memory))
 		}
 		for j := uint(0); j < getGPUMemory(); j++ {
-			fakeID := generateFakeDeviceID(d.UUID, j)
+			fakeID := generateFakeDeviceID(i, j)
 			if j == 0 {
 				log.Infoln("# Add first device ID: " + fakeID)
 			}

@@ -1,30 +1,29 @@
 package nvidia
 
 import (
+	"encoding/json"
 	"fmt"
-	"os"
-	"sort"
-	"time"
-
+	"github.com/AliyunContainerService/gpushare-device-plugin/pkg/kubelet/client"
 	log "github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/labels"
-
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	nodeutil "k8s.io/kubernetes/pkg/util/node"
+	"os"
+	"sort"
+	"time"
 )
 
 var (
 	clientset *kubernetes.Clientset
 	nodeName  string
-	retries   = 5
+	retries   = 8
 )
 
 func kubeInit() {
@@ -58,18 +57,18 @@ func kubeInit() {
 }
 
 func disableCGPUIsolationOrNot() (bool, error) {
-    disable := false
-    node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
-    if err != nil {
-        return disable, err
-    }
-    labels := node.ObjectMeta.Labels
-    value, ok := labels[EnvNodeLabelForDisableCGPU]
-    if ok && value == "true" {
-        log.Infof("enable gpusharing mode and disable cgpu mode")
-        disable = true
-    }
-    return disable, nil
+	disable := false
+	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		return disable, err
+	}
+	labels := node.ObjectMeta.Labels
+	value, ok := labels[EnvNodeLabelForDisableCGPU]
+	if ok && value == "true" {
+		log.Infof("enable gpusharing mode and disable cgpu mode")
+		disable = true
+	}
+	return disable, nil
 }
 
 func patchGPUCount(gpuCount int) error {
@@ -99,15 +98,31 @@ func patchGPUCount(gpuCount int) error {
 	return err
 }
 
-func getPendingPodsInNode() ([]v1.Pod, error) {
-	// pods, err := m.lister.List(labels.Everything())
-	// if err != nil {
-	// 	return nil, err
-	// }
-	pods := []v1.Pod{}
+func getPodList(kubeletClient *client.KubeletClient) (*v1.PodList, error) {
+	podList, err := kubeletClient.GetNodeRunningPods()
+	if err != nil {
+		return nil, err
+	}
 
-	podIDMap := map[types.UID]bool{}
+	list, _ := json.Marshal(podList)
+	log.V(8).Infof("get pods list %v", string(list))
 
+	resultPodList := &v1.PodList{}
+	for _, metaPod := range podList.Items {
+		if metaPod.Status.Phase != v1.PodPending {
+			continue
+		}
+		resultPodList.Items = append(resultPodList.Items, metaPod)
+	}
+
+	if len(resultPodList.Items) == 0 {
+		return nil, fmt.Errorf("not found pending pod")
+	}
+
+	return resultPodList, nil
+}
+
+func getPodListsByListAPIServer() (*v1.PodList, error) {
 	selector := fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName, "status.phase": "Pending"})
 	podList, err := clientset.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
 		FieldSelector: selector.String(),
@@ -118,10 +133,35 @@ func getPendingPodsInNode() ([]v1.Pod, error) {
 			FieldSelector: selector.String(),
 			LabelSelector: labels.Everything().String(),
 		})
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Pods assigned to node %v", nodeName)
+	}
+
+	return podList, nil
+}
+
+func getPendingPodsInNode(kubeletClient *client.KubeletClient) ([]v1.Pod, error) {
+	// pods, err := m.lister.List(labels.Everything())
+	// if err != nil {
+	// 	return nil, err
+	// }
+	pods := []v1.Pod{}
+
+	podIDMap := map[types.UID]bool{}
+
+	podList, err := getPodList(kubeletClient)
+	for i := 0; i < retries && err != nil; i++ {
+		podList, err = getPodList(kubeletClient)
+		time.Sleep(500 * time.Millisecond)
+	}
+	if err != nil {
+		log.Warningf("not found from kubelet /pods api, start to list apiserver")
+		podList, err = getPodListsByListAPIServer()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	log.V(5).Infof("all pod list %v", podList.Items)
@@ -154,9 +194,9 @@ func getPendingPodsInNode() ([]v1.Pod, error) {
 }
 
 // pick up the gpushare pod with assigned status is false, and
-func getCandidatePods() ([]*v1.Pod, error) {
+func getCandidatePods(client *client.KubeletClient) ([]*v1.Pod, error) {
 	candidatePods := []*v1.Pod{}
-	allPods, err := getPendingPodsInNode()
+	allPods, err := getPendingPodsInNode(client)
 	if err != nil {
 		return candidatePods, err
 	}

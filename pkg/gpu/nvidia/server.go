@@ -1,6 +1,7 @@
 package nvidia
 
 import (
+	"github.com/AliyunContainerService/gpushare-device-plugin/pkg/kubelet/client"
 	"net"
 	"os"
 	"path"
@@ -26,13 +27,14 @@ type NvidiaDevicePlugin struct {
 	disableCGPUIsolation bool
 	stop                 chan struct{}
 	health               chan *pluginapi.Device
+	kubeletClient *client.KubeletClient
 
 	server *grpc.Server
 	sync.RWMutex
 }
 
 // NewNvidiaDevicePlugin returns an initialized NvidiaDevicePlugin
-func NewNvidiaDevicePlugin(mps, healthCheck bool) (*NvidiaDevicePlugin, error) {
+func NewNvidiaDevicePlugin(mps, healthCheck bool, client *client.KubeletClient) (*NvidiaDevicePlugin, error) {
 	devs, devNameMap := getDevices()
 	devList := []string{}
 
@@ -61,6 +63,7 @@ func NewNvidiaDevicePlugin(mps, healthCheck bool) (*NvidiaDevicePlugin, error) {
 		disableCGPUIsolation: disableCGPUIsolation,
 		stop:                 make(chan struct{}),
 		health:               make(chan *pluginapi.Device),
+		kubeletClient:        client,
 	}, nil
 }
 

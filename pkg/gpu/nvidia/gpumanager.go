@@ -2,6 +2,7 @@ package nvidia
 
 import (
 	"fmt"
+	"github.com/AliyunContainerService/gpushare-device-plugin/pkg/kubelet/client"
 	"syscall"
 	"time"
 
@@ -12,15 +13,17 @@ import (
 )
 
 type sharedGPUManager struct {
-	enableMPS   bool
-	healthCheck bool
+	enableMPS     bool
+	healthCheck   bool
+	kubeletClient *client.KubeletClient
 }
 
-func NewSharedGPUManager(enableMPS, healthCheck bool, bp MemoryUnit) *sharedGPUManager {
+func NewSharedGPUManager(enableMPS, healthCheck bool, bp MemoryUnit, client *client.KubeletClient) *sharedGPUManager {
 	metric = bp
 	return &sharedGPUManager{
-		enableMPS:   enableMPS,
-		healthCheck: healthCheck,
+		enableMPS:     enableMPS,
+		healthCheck:   healthCheck,
+		kubeletClient: client,
 	}
 }
 
@@ -61,7 +64,7 @@ L:
 				devicePlugin.Stop()
 			}
 
-			devicePlugin, err = NewNvidiaDevicePlugin(ngm.enableMPS, ngm.healthCheck)
+			devicePlugin, err = NewNvidiaDevicePlugin(ngm.enableMPS, ngm.healthCheck, ngm.kubeletClient)
 			if err != nil {
 				log.Warningf("Failed to get device plugin due to %v", err)
 			} else if err = devicePlugin.Serve(); err != nil {
