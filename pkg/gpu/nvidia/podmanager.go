@@ -154,7 +154,8 @@ func getPendingPodsInNode(kubeletClient *client.KubeletClient) ([]v1.Pod, error)
 	podList, err := getPodList(kubeletClient)
 	for i := 0; i < retries && err != nil; i++ {
 		podList, err = getPodList(kubeletClient)
-		time.Sleep(500 * time.Millisecond)
+		log.Warningf("failed to get pending pod list, retry")
+		time.Sleep(100 * time.Millisecond)
 	}
 	if err != nil {
 		log.Warningf("not found from kubelet /pods api, start to list apiserver")
