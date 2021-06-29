@@ -59,7 +59,7 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 	m.Lock()
 	defer m.Unlock()
 	log.Infoln("checking...")
-	pods, err := getCandidatePods()
+	pods, err := getCandidatePods(m.kubeletClient)
 	if err != nil {
 		log.Infof("invalid allocation requst: Failed to find candidate pods due to %v", err)
 		return buildErrResponse(reqs, podReqGPU), nil
@@ -155,8 +155,12 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 		return buildErrResponse(reqs, podReqGPU), nil
 	}
 
-	log.Infof("new allocated GPUs info %v", &responses)
-	log.Infoln("----Allocating GPU for gpu mem is ended----")
+	podName := ""
+	if assumePod != nil {
+		podName = assumePod.Name
+	}
+	log.Infof("pod %v, new allocated GPUs info %v", podName, &responses)
+	log.Infof("----Allocating GPU for gpu mem for %v is ended----", podName)
 	// // Add this to make sure the container is created at least
 	// currentTime := time.Now()
 
