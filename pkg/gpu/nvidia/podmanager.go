@@ -122,6 +122,23 @@ func getPodList(kubeletClient *client.KubeletClient) (*v1.PodList, error) {
 	return resultPodList, nil
 }
 
+func getPodListsByQueryKubelet(kubeletClient *client.KubeletClient) (*v1.PodList, error) {
+	podList, err := getPodList(kubeletClient)
+	for i := 0; i < retries && err != nil; i++ {
+		podList, err = getPodList(kubeletClient)
+		log.Warningf("failed to get pending pod list, retry")
+		time.Sleep(100 * time.Millisecond)
+	}
+	if err != nil {
+		log.Warningf("not found from kubelet /pods api, start to list apiserver")
+		podList, err = getPodListsByListAPIServer()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return podList, nil
+}
+
 func getPodListsByListAPIServer() (*v1.PodList, error) {
 	selector := fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName, "status.phase": "Pending"})
 	podList, err := clientset.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
@@ -142,7 +159,7 @@ func getPodListsByListAPIServer() (*v1.PodList, error) {
 	return podList, nil
 }
 
-func getPendingPodsInNode(kubeletClient *client.KubeletClient) ([]v1.Pod, error) {
+func getPendingPodsInNode(queryKubelet bool, kubeletClient *client.KubeletClient) ([]v1.Pod, error) {
 	// pods, err := m.lister.List(labels.Everything())
 	// if err != nil {
 	// 	return nil, err
@@ -151,14 +168,14 @@ func getPendingPodsInNode(kubeletClient *client.KubeletClient) ([]v1.Pod, error)
 
 	podIDMap := map[types.UID]bool{}
 
-	podList, err := getPodList(kubeletClient)
-	for i := 0; i < retries && err != nil; i++ {
-		podList, err = getPodList(kubeletClient)
-		log.Warningf("failed to get pending pod list, retry")
-		time.Sleep(100 * time.Millisecond)
-	}
-	if err != nil {
-		log.Warningf("not found from kubelet /pods api, start to list apiserver")
+	var podList *v1.PodList
+	var err error
+	if queryKubelet {
+		podList, err = getPodListsByQueryKubelet(kubeletClient)
+		if err != nil {
+			return nil, err
+		}
+	} else {
 		podList, err = getPodListsByListAPIServer()
 		if err != nil {
 			return nil, err
@@ -195,9 +212,9 @@ func getPendingPodsInNode(kubeletClient *client.KubeletClient) ([]v1.Pod, error)
 }
 
 // pick up the gpushare pod with assigned status is false, and
-func getCandidatePods(client *client.KubeletClient) ([]*v1.Pod, error) {
+func getCandidatePods(queryKubelet bool, client *client.KubeletClient) ([]*v1.Pod, error) {
 	candidatePods := []*v1.Pod{}
-	allPods, err := getPendingPodsInNode(client)
+	allPods, err := getPendingPodsInNode(queryKubelet, client)
 	if err != nil {
 		return candidatePods, err
 	}

@@ -15,14 +15,16 @@ import (
 type sharedGPUManager struct {
 	enableMPS     bool
 	healthCheck   bool
+	queryKubelet  bool
 	kubeletClient *client.KubeletClient
 }
 
-func NewSharedGPUManager(enableMPS, healthCheck bool, bp MemoryUnit, client *client.KubeletClient) *sharedGPUManager {
+func NewSharedGPUManager(enableMPS, healthCheck, queryKubelet bool, bp MemoryUnit, client *client.KubeletClient) *sharedGPUManager {
 	metric = bp
 	return &sharedGPUManager{
 		enableMPS:     enableMPS,
 		healthCheck:   healthCheck,
+		queryKubelet:  queryKubelet,
 		kubeletClient: client,
 	}
 }
@@ -64,7 +66,7 @@ L:
 				devicePlugin.Stop()
 			}
 
-			devicePlugin, err = NewNvidiaDevicePlugin(ngm.enableMPS, ngm.healthCheck, ngm.kubeletClient)
+			devicePlugin, err = NewNvidiaDevicePlugin(ngm.enableMPS, ngm.healthCheck, ngm.queryKubelet, ngm.kubeletClient)
 			if err != nil {
 				log.Warningf("Failed to get device plugin due to %v", err)
 			} else if err = devicePlugin.Serve(); err != nil {

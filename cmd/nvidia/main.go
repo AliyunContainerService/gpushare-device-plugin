@@ -12,15 +12,16 @@ import (
 )
 
 var (
-	mps            = flag.Bool("mps", false, "Enable or Disable MPS")
-	healthCheck    = flag.Bool("health-check", false, "Enable or disable Health check")
-	memoryUnit     = flag.String("memory-unit", "GiB", "Set memoryUnit of the GPU Memroy, support 'GiB' and 'MiB'")
-	kubeletAddress = flag.String("kubelet-address", "0.0.0.0", "Kubelet IP Address")
-	kubeletPort    = flag.Uint("kubelet-port", 10250, "Kubelet listened Port")
-	clientCert     = flag.String("client-cert", "", "Kubelet TLS client certificate")
-	clientKey      = flag.String("client-key", "", "Kubelet TLS client key")
-	token          = flag.String("token", "", "Kubelet client bearer token")
-	timeout        = flag.Int("timeout", 10, "Kubelet client http timeout duration")
+	mps              = flag.Bool("mps", false, "Enable or Disable MPS")
+	healthCheck      = flag.Bool("health-check", false, "Enable or disable Health check")
+	memoryUnit       = flag.String("memory-unit", "GiB", "Set memoryUnit of the GPU Memroy, support 'GiB' and 'MiB'")
+	queryFromKubelet = flag.Bool("query-kubelet", true, "Query pending pods from kubelet instead of kube-apiserver")
+	kubeletAddress   = flag.String("kubelet-address", "0.0.0.0", "Kubelet IP Address")
+	kubeletPort      = flag.Uint("kubelet-port", 10250, "Kubelet listened Port")
+	clientCert       = flag.String("client-cert", "", "Kubelet TLS client certificate")
+	clientKey        = flag.String("client-key", "", "Kubelet TLS client key")
+	token            = flag.String("token", "", "Kubelet client bearer token")
+	timeout          = flag.Int("timeout", 10, "Kubelet client http timeout duration")
 )
 
 func buildKubeletClient() *client.KubeletClient {
@@ -55,7 +56,7 @@ func main() {
 	log.V(1).Infoln("Start gpushare device plugin")
 
 	kubeletClient := buildKubeletClient()
-	ngm := nvidia.NewSharedGPUManager(*mps, *healthCheck, translatememoryUnits(*memoryUnit), kubeletClient)
+	ngm := nvidia.NewSharedGPUManager(*mps, *healthCheck, *queryFromKubelet, translatememoryUnits(*memoryUnit), kubeletClient)
 	err := ngm.Run()
 	if err != nil {
 		log.Fatalf("Failed due to %v", err)

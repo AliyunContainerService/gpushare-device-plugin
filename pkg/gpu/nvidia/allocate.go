@@ -59,7 +59,7 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 	m.Lock()
 	defer m.Unlock()
 	log.Infoln("checking...")
-	pods, err := getCandidatePods(m.kubeletClient)
+	pods, err := getCandidatePods(m.queryKubelet, m.kubeletClient)
 	if err != nil {
 		log.Infof("invalid allocation requst: Failed to find candidate pods due to %v", err)
 		return buildErrResponse(reqs, podReqGPU), nil

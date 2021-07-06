@@ -27,14 +27,15 @@ type NvidiaDevicePlugin struct {
 	disableCGPUIsolation bool
 	stop                 chan struct{}
 	health               chan *pluginapi.Device
-	kubeletClient *client.KubeletClient
+	queryKubelet         bool
+	kubeletClient        *client.KubeletClient
 
 	server *grpc.Server
 	sync.RWMutex
 }
 
 // NewNvidiaDevicePlugin returns an initialized NvidiaDevicePlugin
-func NewNvidiaDevicePlugin(mps, healthCheck bool, client *client.KubeletClient) (*NvidiaDevicePlugin, error) {
+func NewNvidiaDevicePlugin(mps, healthCheck, queryKubelet bool, client *client.KubeletClient) (*NvidiaDevicePlugin, error) {
 	devs, devNameMap := getDevices()
 	devList := []string{}
 
@@ -63,6 +64,7 @@ func NewNvidiaDevicePlugin(mps, healthCheck bool, client *client.KubeletClient) 
 		disableCGPUIsolation: disableCGPUIsolation,
 		stop:                 make(chan struct{}),
 		health:               make(chan *pluginapi.Device),
+		queryKubelet:         queryKubelet,
 		kubeletClient:        client,
 	}, nil
 }
