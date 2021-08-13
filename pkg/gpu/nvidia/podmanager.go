@@ -221,7 +221,13 @@ func getCandidatePods(queryKubelet bool, client *client.KubeletClient) ([]*v1.Po
 	for _, pod := range allPods {
 		current := pod
 		if isGPUMemoryAssumedPod(&current) {
-			candidatePods = append(candidatePods, &current)
+			currentFromApi, err := clientset.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
+			if err != nil {
+				return candidatePods, err
+			}
+			if isGPUMemoryAssumedPod(currentFromApi) {
+				candidatePods = append(candidatePods, currentFromApi)
+			}
 		}
 	}
 
