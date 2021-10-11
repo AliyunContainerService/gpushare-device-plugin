@@ -148,6 +148,34 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 			}
 		}
 
+	} else if len(m.devNameMap) == 1 {
+		var devName string
+		var devIndex uint
+		for d, index := range m.devNameMap {
+			devName = d
+			devIndex = index
+			break
+		}
+		log.Infof("this node has only one gpu device,skip to search pod and directly specify the device  %v(%v) for container", devIndex, devName)
+		for _, req := range reqs.ContainerRequests {
+			reqGPU := uint(len(req.DevicesIDs))
+			response := pluginapi.ContainerAllocateResponse{
+				Envs: map[string]string{
+					envNVGPU:               devName,
+					EnvResourceIndex:       fmt.Sprintf("%d", devIndex),
+					EnvResourceByPod:       fmt.Sprintf("%d", podReqGPU),
+					EnvResourceByContainer: fmt.Sprintf("%d", reqGPU),
+					EnvResourceByDev:       fmt.Sprintf("%d", getGPUMemory()),
+				},
+			}
+			if m.disableCGPUIsolation {
+				response.Envs["CGPU_DISABLE"] = "true"
+			}
+			responses.ContainerResponses = append(responses.ContainerResponses, &response)
+		}
+		log.Infof("get allocated GPUs info %v", responses)
+		return &responses, nil
+
 	} else {
 		log.Warningf("invalid allocation requst: request GPU memory %d can't be satisfied.",
 			podReqGPU)
