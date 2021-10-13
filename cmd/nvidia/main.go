@@ -3,19 +3,20 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"time"
+
 	"github.com/AliyunContainerService/gpushare-device-plugin/pkg/gpu/nvidia"
 	"github.com/AliyunContainerService/gpushare-device-plugin/pkg/kubelet/client"
 	log "github.com/golang/glog"
-	"io/ioutil"
 	"k8s.io/client-go/rest"
-	"time"
 )
 
 var (
 	mps              = flag.Bool("mps", false, "Enable or Disable MPS")
 	healthCheck      = flag.Bool("health-check", false, "Enable or disable Health check")
 	memoryUnit       = flag.String("memory-unit", "GiB", "Set memoryUnit of the GPU Memroy, support 'GiB' and 'MiB'")
-	queryFromKubelet = flag.Bool("query-kubelet", true, "Query pending pods from kubelet instead of kube-apiserver")
+	queryFromKubelet = flag.Bool("query-kubelet", false, "Query pending pods from kubelet instead of kube-apiserver")
 	kubeletAddress   = flag.String("kubelet-address", "0.0.0.0", "Kubelet IP Address")
 	kubeletPort      = flag.Uint("kubelet-port", 10250, "Kubelet listened Port")
 	clientCert       = flag.String("client-cert", "", "Kubelet TLS client certificate")
