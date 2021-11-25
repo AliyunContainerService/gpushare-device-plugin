@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/AliyunContainerService/gpushare-device-plugin/pkg/kubelet/client"
 	"syscall"
+	"os"
 	"time"
 
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
@@ -69,8 +70,10 @@ L:
 			devicePlugin, err = NewNvidiaDevicePlugin(ngm.enableMPS, ngm.healthCheck, ngm.queryKubelet, ngm.kubeletClient)
 			if err != nil {
 				log.Warningf("Failed to get device plugin due to %v", err)
+				os.Exit(1)
 			} else if err = devicePlugin.Serve(); err != nil {
 				log.Warningf("Failed to start device plugin due to %v", err)
+				os.Exit(2)
 			} else {
 				restart = false
 			}
