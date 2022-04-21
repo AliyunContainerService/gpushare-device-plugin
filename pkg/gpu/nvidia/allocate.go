@@ -108,13 +108,13 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 		if id < 0 {
 			return buildErrResponse(reqs, podReqGPU), nil
 		}
-
+		log.Infof("gpu index %v,uuid: %v", id, candidateDevID)
 		// 1. Create container requests
 		for _, req := range reqs.ContainerRequests {
 			reqGPU := uint(len(req.DevicesIDs))
 			response := pluginapi.ContainerAllocateResponse{
 				Envs: map[string]string{
-					envNVGPU:               candidateDevID,
+					envNVGPU:               fmt.Sprintf("%v", id),
 					EnvResourceIndex:       fmt.Sprintf("%d", id),
 					EnvResourceByPod:       fmt.Sprintf("%d", podReqGPU),
 					EnvResourceByContainer: fmt.Sprintf("%d", reqGPU),
