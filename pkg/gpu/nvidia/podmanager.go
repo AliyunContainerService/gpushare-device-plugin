@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/AliyunContainerService/gpushare-device-plugin/pkg/kubelet/client"
 	log "github.com/golang/glog"
+	"golang.org/x/net/context"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +15,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	nodeutil "k8s.io/kubernetes/pkg/util/node"
 	"os"
 	"sort"
 	"time"
@@ -56,9 +56,9 @@ func kubeInit() {
 
 }
 
-func disableCGPUIsolationOrNot() (bool, error) {
+func disableCGPUIsolationOrNot(ctx context.Context) (bool, error) {
 	disable := false
-	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	node, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
 		return disable, err
 	}
@@ -71,8 +71,8 @@ func disableCGPUIsolationOrNot() (bool, error) {
 	return disable, nil
 }
 
-func patchGPUCount(gpuCount int) error {
-	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+func patchGPUCount(ctx context.Context, gpuCount int) error {
+	node, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,12 @@ func patchGPUCount(gpuCount int) error {
 	newNode.Status.Allocatable[resourceCount] = *resource.NewQuantity(int64(gpuCount), resource.DecimalSI)
 	// content := fmt.Sprintf(`[{"op": "add", "path": "/status/capacity/aliyun.com~gpu-count", "value": "%d"}]`, gpuCount)
 	// _, err = clientset.CoreV1().Nodes().PatchStatus(nodeName, []byte(content))
-	_, _, err = nodeutil.PatchNodeStatus(clientset.CoreV1(), types.NodeName(nodeName), node, newNode)
+	patchContent, err := newNode.Status.Marshal()
+	if err != nil {
+		log.Warningf("Failed to marshal new node status")
+		return err
+	}
+	_, err = clientset.CoreV1().Nodes().PatchStatus(ctx, nodeName, patchContent)
 	if err != nil {
 		log.Infof("Failed to update Capacity %s.", resourceCount)
 	} else {
@@ -105,7 +110,7 @@ func getPodList(kubeletClient *client.KubeletClient) (*v1.PodList, error) {
 	}
 
 	list, _ := json.Marshal(podList)
-	log.V(8).Infof("get pods list %v", string(list))
+	log.V(99).Infof("get pods list %v", string(list))
 
 	resultPodList := &v1.PodList{}
 	for _, metaPod := range podList.Items {
@@ -122,7 +127,7 @@ func getPodList(kubeletClient *client.KubeletClient) (*v1.PodList, error) {
 	return resultPodList, nil
 }
 
-func getPodListsByQueryKubelet(kubeletClient *client.KubeletClient) (*v1.PodList, error) {
+func getPodListsByQueryKubelet(ctx context.Context, kubeletClient *client.KubeletClient) (*v1.PodList, error) {
 	podList, err := getPodList(kubeletClient)
 	for i := 0; i < retries && err != nil; i++ {
 		podList, err = getPodList(kubeletClient)
@@ -131,7 +136,7 @@ func getPodListsByQueryKubelet(kubeletClient *client.KubeletClient) (*v1.PodList
 	}
 	if err != nil {
 		log.Warningf("not found from kubelet /pods api, start to list apiserver")
-		podList, err = getPodListsByListAPIServer()
+		podList, err = getPodListsByListAPIServer(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -139,14 +144,14 @@ func getPodListsByQueryKubelet(kubeletClient *client.KubeletClient) (*v1.PodList
 	return podList, nil
 }
 
-func getPodListsByListAPIServer() (*v1.PodList, error) {
+func getPodListsByListAPIServer(ctx context.Context) (*v1.PodList, error) {
 	selector := fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName, "status.phase": "Pending"})
-	podList, err := clientset.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
+	podList, err := clientset.CoreV1().Pods(v1.NamespaceAll).List(ctx, metav1.ListOptions{
 		FieldSelector: selector.String(),
 		LabelSelector: labels.Everything().String(),
 	})
 	for i := 0; i < 3 && err != nil; i++ {
-		podList, err = clientset.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
+		podList, err = clientset.CoreV1().Pods(v1.NamespaceAll).List(ctx, metav1.ListOptions{
 			FieldSelector: selector.String(),
 			LabelSelector: labels.Everything().String(),
 		})
@@ -159,7 +164,7 @@ func getPodListsByListAPIServer() (*v1.PodList, error) {
 	return podList, nil
 }
 
-func getPendingPodsInNode(queryKubelet bool, kubeletClient *client.KubeletClient) ([]v1.Pod, error) {
+func getPendingPodsInNode(ctx context.Context, queryKubelet bool, kubeletClient *client.KubeletClient) ([]v1.Pod, error) {
 	// pods, err := m.lister.List(labels.Everything())
 	// if err != nil {
 	// 	return nil, err
@@ -171,12 +176,12 @@ func getPendingPodsInNode(queryKubelet bool, kubeletClient *client.KubeletClient
 	var podList *v1.PodList
 	var err error
 	if queryKubelet {
-		podList, err = getPodListsByQueryKubelet(kubeletClient)
+		podList, err = getPodListsByQueryKubelet(ctx, kubeletClient)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		podList, err = getPodListsByListAPIServer()
+		podList, err = getPodListsByListAPIServer(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -212,9 +217,9 @@ func getPendingPodsInNode(queryKubelet bool, kubeletClient *client.KubeletClient
 }
 
 // pick up the gpushare pod with assigned status is false, and
-func getCandidatePods(queryKubelet bool, client *client.KubeletClient) ([]*v1.Pod, error) {
+func getCandidatePods(ctx context.Context, queryKubelet bool, client *client.KubeletClient) ([]*v1.Pod, error) {
 	candidatePods := []*v1.Pod{}
-	allPods, err := getPendingPodsInNode(queryKubelet, client)
+	allPods, err := getPendingPodsInNode(ctx, queryKubelet, client)
 	if err != nil {
 		return candidatePods, err
 	}

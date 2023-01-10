@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"golang.org/x/net/context"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"os"
 	"path"
 	"time"
@@ -10,8 +13,6 @@ import (
 
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -54,15 +55,15 @@ func (p podInfo) equal(p1 podInfo) bool {
 	return p.name == p1.name && p.namespace == p1.namespace
 }
 
-func getActivePodsByNode(nodeName string) ([]v1.Pod, error) {
+func getActivePodsByNode(ctx context.Context, nodeName string) ([]v1.Pod, error) {
 	selector := fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName})
-	pods, err := clientset.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
+	pods, err := clientset.CoreV1().Pods(v1.NamespaceAll).List(ctx, metav1.ListOptions{
 		FieldSelector: selector.String(),
 		LabelSelector: labels.Everything().String(),
 	})
 
 	for i := 0; i < retries && err != nil; i++ {
-		pods, err = clientset.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
+		pods, err = clientset.CoreV1().Pods(v1.NamespaceAll).List(ctx, metav1.ListOptions{
 			FieldSelector: selector.String(),
 			LabelSelector: labels.Everything().String(),
 		})
@@ -75,13 +76,13 @@ func getActivePodsByNode(nodeName string) ([]v1.Pod, error) {
 	return filterActivePods(pods.Items), nil
 }
 
-func getActivePodsInAllNodes() ([]v1.Pod, error) {
-	pods, err := clientset.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
+func getActivePodsInAllNodes(ctx context.Context) ([]v1.Pod, error) {
+	pods, err := clientset.CoreV1().Pods(v1.NamespaceAll).List(ctx, metav1.ListOptions{
 		LabelSelector: labels.Everything().String(),
 	})
 
 	for i := 0; i < retries && err != nil; i++ {
-		pods, err = clientset.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
+		pods, err = clientset.CoreV1().Pods(v1.NamespaceAll).List(ctx, metav1.ListOptions{
 			LabelSelector: labels.Everything().String(),
 		})
 		time.Sleep(100 * time.Millisecond)
@@ -105,9 +106,9 @@ func filterActivePods(pods []v1.Pod) (activePods []v1.Pod) {
 	return activePods
 }
 
-func getAllSharedGPUNode() ([]v1.Node, error) {
+func getAllSharedGPUNode(ctx context.Context) ([]v1.Node, error) {
 	nodes := []v1.Node{}
-	allNodes, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	allNodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nodes, err
 	}

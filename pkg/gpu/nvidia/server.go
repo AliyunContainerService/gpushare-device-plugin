@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 // NvidiaDevicePlugin implements the Kubernetes device plugin API
@@ -34,23 +34,44 @@ type NvidiaDevicePlugin struct {
 	sync.RWMutex
 }
 
+func (m *NvidiaDevicePlugin) GetPreferredAllocation(ctx context.Context, r *pluginapi.PreferredAllocationRequest) (*pluginapi.PreferredAllocationResponse, error) {
+	response := &pluginapi.PreferredAllocationResponse{}
+	for _, req := range r.ContainerRequests {
+		// fixme: better logic
+		//devices, err := GetPreferredAllocation(req.AvailableDeviceIDs, req.MustIncludeDeviceIDs, int(req.AllocationSize))
+		//if err != nil {
+		//	return nil, fmt.Errorf("error getting list of preferred allocation devices: %v", err)
+		//}
+		// hack simple append deviceIds
+		var devices []string
+		devices = append(devices, req.AvailableDeviceIDs...)
+		devices = append(devices, req.MustIncludeDeviceIDs...)
+		resp := &pluginapi.ContainerPreferredAllocationResponse{
+			DeviceIDs: devices,
+		}
+
+		response.ContainerResponses = append(response.ContainerResponses, resp)
+	}
+	return response, nil
+}
+
 // NewNvidiaDevicePlugin returns an initialized NvidiaDevicePlugin
-func NewNvidiaDevicePlugin(mps, healthCheck, queryKubelet bool, client *client.KubeletClient) (*NvidiaDevicePlugin, error) {
+func NewNvidiaDevicePlugin(ctx context.Context, mps, healthCheck, queryKubelet bool, client *client.KubeletClient) (*NvidiaDevicePlugin, error) {
 	devs, devNameMap := getDevices()
 	devList := []string{}
 
-	for dev, _ := range devNameMap {
+	for dev := range devNameMap {
 		devList = append(devList, dev)
 	}
 
 	log.Infof("Device Map: %v", devNameMap)
 	log.Infof("Device List: %v", devList)
 
-	err := patchGPUCount(len(devList))
+	err := patchGPUCount(ctx, len(devList))
 	if err != nil {
 		return nil, err
 	}
-	disableCGPUIsolation, err := disableCGPUIsolationOrNot()
+	disableCGPUIsolation, err := disableCGPUIsolationOrNot(ctx)
 	if err != nil {
 		return nil, err
 	}

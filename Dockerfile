@@ -1,4 +1,4 @@
-FROM golang:1.10-stretch as build
+FROM golang:1.19 as build
 
 WORKDIR /go/src/github.com/AliyunContainerService/gpushare-device-plugin
 COPY . .

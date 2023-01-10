@@ -3,13 +3,13 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"os"
 	"strconv"
 	"text/tabwriter"
 
 	log "github.com/golang/glog"
 	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 func displayDetails(nodeInfos []*NodeInfo) {
@@ -60,8 +60,8 @@ func displayDetails(nodeInfos []*NodeInfo) {
 		for i, dev := range nodeInfo.devs {
 			usedGPUMemInNode += dev.usedGPUMem
 			for _, pod := range dev.pods {
-				if _,ok := exists[pod.UID]; ok {
-					continue 
+				if _, ok := exists[pod.UID]; ok {
+					continue
 				}
 				buffer.WriteString(fmt.Sprintf("%s\t%s\t", pod.Name, pod.Namespace))
 				count := nodeInfo.gpuCount
@@ -70,10 +70,10 @@ func displayDetails(nodeInfos []*NodeInfo) {
 				}
 
 				for k := 0; k < count; k++ {
-					allocation := GetAllocation(&pod) 
+					allocation := GetAllocation(&pod)
 					if len(allocation) != 0 {
 						buffer.WriteString(fmt.Sprintf("%d\t", allocation[k]))
-						continue 
+						continue
 					}
 					if k == i || (i == -1 && k == nodeInfo.gpuCount) {
 						buffer.WriteString(fmt.Sprintf("%d\t", getGPUMemoryInPod(pod)))
@@ -82,7 +82,7 @@ func displayDetails(nodeInfos []*NodeInfo) {
 					}
 				}
 				buffer.WriteString("\n")
-				exists[pod.UID] = true 
+				exists[pod.UID] = true
 			}
 		}
 		if prtLineLen == 0 {

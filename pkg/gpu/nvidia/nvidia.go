@@ -4,82 +4,77 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	log "github.com/golang/glog"
 
-	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
-
 	"golang.org/x/net/context"
-	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 var (
-	gpuMemory uint
-	metric    MemoryUnit
+	metric MemoryUnit
 )
 
-func check(err error) {
-	if err != nil {
-		log.Fatalln("Fatal:", err)
+func check(ret nvml.Return) {
+	if ret != nvml.SUCCESS {
+		log.Fatalln("Fatal: ", ret)
 	}
 }
 
-func generateFakeDeviceID(realID string, fakeCounter uint) string {
-	return fmt.Sprintf("%s-_-%d", realID, fakeCounter)
+func generateFakeDeviceID(realID string, fakeCounter uint64) *string {
+	fakeId := fmt.Sprintf("%s-_-%d", realID, fakeCounter)
+	return &fakeId
 }
 
 func extractRealDeviceID(fakeDeviceID string) string {
 	return strings.Split(fakeDeviceID, "-_-")[0]
 }
 
-func setGPUMemory(raw uint) {
-	v := raw
-	if metric == GiBPrefix {
-		v = raw / 1024
-	}
-	gpuMemory = v
-	log.Infof("set gpu memory: %d", gpuMemory)
-}
-
-func getGPUMemory() uint {
-	return gpuMemory
-}
-
-func getDeviceCount() uint {
-	n, err := nvml.GetDeviceCount()
-	check(err)
+func getDeviceCount() int {
+	n, ret := nvml.DeviceGetCount()
+	check(ret)
 	return n
 }
 
+func getDevicePaths(d *nvml.Device) ([]string, error) {
+	minor, ret := d.GetMinorNumber()
+	if ret != nvml.SUCCESS {
+		return nil, fmt.Errorf("error getting GPU device minor number: %v", ret)
+	}
+	path := fmt.Sprintf("/dev/nvidia%d", minor)
+
+	return []string{path}, nil
+}
+
 func getDevices() ([]*pluginapi.Device, map[string]uint) {
-	n, err := nvml.GetDeviceCount()
-	check(err)
+	n, ret := nvml.DeviceGetCount()
+	check(ret)
 
 	var devs []*pluginapi.Device
 	realDevNames := map[string]uint{}
-	for i := uint(0); i < n; i++ {
-		d, err := nvml.NewDevice(i)
-		check(err)
+	for i := 0; i < n; i++ {
+		d, ret := nvml.DeviceGetHandleByIndex(i)
+		check(ret)
 		// realDevNames = append(realDevNames, d.UUID)
 		var id uint
-		log.Infof("Deivce %s's Path is %s", d.UUID, d.Path)
-		_, err = fmt.Sscanf(d.Path, "/dev/nvidia%d", &id)
-		check(err)
-		realDevNames[d.UUID] = id
-		// var KiB uint64 = 1024
-		log.Infof("# device Memory: %d", uint(*d.Memory))
-		if getGPUMemory() == uint(0) {
-			setGPUMemory(uint(*d.Memory))
+		uuid, ret := d.GetUUID()
+		check(ret)
+		memory, ret := d.GetMemoryInfo()
+		check(ret)
+		paths, err := getDevicePaths(&d)
+		if err != nil {
+			continue
 		}
-		for j := uint(0); j < getGPUMemory(); j++ {
-			fakeID := generateFakeDeviceID(d.UUID, j)
-			if j == 0 {
-				log.Infoln("# Add first device ID: " + fakeID)
-			}
-			if j == getGPUMemory()-1 {
-				log.Infoln("# Add last device ID: " + fakeID)
-			}
+		log.Infof("Deivce %s, path %v, memory %+v", uuid, paths, memory)
+		realDevNames[uuid] = id
+		memoryGiB := memory.Free / 1024 / 1024 / 1024
+		log.V(1).Infof("gpu memory %d G \n", memoryGiB)
+		for j := uint64(0); j < memoryGiB; j++ {
+			fakeID := generateFakeDeviceID(uuid, j)
+			log.Infof("# Add %d device ID: %s\n", j, *fakeID)
+
 			devs = append(devs, &pluginapi.Device{
-				ID:     fakeID,
+				ID:     *fakeID,
 				Health: pluginapi.Healthy,
 			})
 		}
@@ -98,22 +93,24 @@ func deviceExists(devs []*pluginapi.Device, id string) bool {
 }
 
 func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *pluginapi.Device) {
-	eventSet := nvml.NewEventSet()
-	defer nvml.DeleteEventSet(eventSet)
+	eventSet, ret := nvml.EventSetCreate()
+	check(ret)
+	defer nvml.EventSetFree(eventSet)
 
 	for _, d := range devs {
 		realDeviceID := extractRealDeviceID(d.ID)
-		err := nvml.RegisterEventForDevice(eventSet, nvml.XidCriticalError, realDeviceID)
-		if err != nil && strings.HasSuffix(err.Error(), "Not Supported") {
-			log.Infof("Warning: %s (%s) is too old to support healthchecking: %s. Marking it unhealthy.", realDeviceID, d.ID, err)
+		device, ret := nvml.DeviceGetHandleByUUID(realDeviceID)
+		if ret != nvml.SUCCESS {
+			continue
+		}
+		ret = nvml.DeviceRegisterEvents(device, nvml.EventTypeXidCriticalError, eventSet)
+		if ret != nvml.SUCCESS {
+			log.Infof("Warning: %s (%s) is too old to support healthchecking: %d. Marking it unhealthy.", realDeviceID, d.ID, ret)
 
 			xids <- d
 			continue
 		}
-
-		if err != nil {
-			log.Fatalf("Fatal error:", err)
-		}
+		check(ret)
 	}
 
 	for {
@@ -123,19 +120,20 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		default:
 		}
 
-		e, err := nvml.WaitForEvent(eventSet, 5000)
-		if err != nil && e.Etype != nvml.XidCriticalError {
+		e, ret := nvml.EventSetWait(eventSet, 5000)
+		if ret != nvml.EventTypeXidCriticalError {
 			continue
 		}
 
 		// FIXME: formalize the full list and document it.
 		// http://docs.nvidia.com/deploy/xid-errors/index.html#topic_4
 		// Application errors: the GPU should still be healthy
-		if e.Edata == 31 || e.Edata == 43 || e.Edata == 45 {
+		if e.EventData == 31 || e.EventData == 43 || e.EventData == 45 {
 			continue
 		}
 
-		if e.UUID == nil || len(*e.UUID) == 0 {
+		uuid, ret := e.Device.GetUUID()
+		if ret != nvml.SUCCESS || len(uuid) == 0 {
 			// All devices are unhealthy
 			for _, d := range devs {
 				xids <- d
@@ -144,7 +142,7 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		}
 
 		for _, d := range devs {
-			if extractRealDeviceID(d.ID) == *e.UUID {
+			if extractRealDeviceID(d.ID) == uuid {
 				xids <- d
 			}
 		}

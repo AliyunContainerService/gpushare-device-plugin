@@ -52,6 +52,7 @@ func getGPUIDFromPodAnnotation(pod *v1.Pod) (id int) {
 			}
 		} else {
 			log.Warningf("Failed to get dev id %s for pod %s in ns %s",
+				value,
 				pod.Name,
 				pod.Namespace)
 		}
