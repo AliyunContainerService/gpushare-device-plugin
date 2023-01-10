@@ -3,8 +3,8 @@ package client
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"k8s.io/client-go/rest"
+	"os"
 	"testing"
 	"time"
 )
@@ -25,9 +25,9 @@ func TestNewKubeletClient(t *testing.T) {
 	flag.Parse()
 
 	if clientCert == "" && clientKey == "" && token == "" {
-		tokenByte, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
+		tokenByte, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 		if err != nil {
-			panic(fmt.Errorf("in cluster mode, find token failed, error: %v", err))
+			t.Skipf("in cluster mode, find token failed, error: %v", err)
 		}
 		token = string(tokenByte)
 	}

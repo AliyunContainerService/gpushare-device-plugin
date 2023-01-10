@@ -2,13 +2,15 @@ package nvidia
 
 import (
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
+	"os"
 	"time"
 
 	log "github.com/golang/glog"
 	"golang.org/x/net/context"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
 var (
@@ -18,7 +20,9 @@ var (
 
 // create docker client
 func init() {
-	kubeInit()
+	if os.Getenv("MODE") != "ut" {
+		kubeInit()
+	}
 }
 
 func buildErrResponse(reqs *pluginapi.AllocateRequest, podReqGPU uint) *pluginapi.AllocateResponse {
@@ -30,7 +34,7 @@ func buildErrResponse(reqs *pluginapi.AllocateRequest, podReqGPU uint) *pluginap
 				EnvResourceIndex:       fmt.Sprintf("-1"),
 				EnvResourceByPod:       fmt.Sprintf("%d", podReqGPU),
 				EnvResourceByContainer: fmt.Sprintf("%d", uint(len(req.DevicesIDs))),
-				EnvResourceByDev:       fmt.Sprintf("%d", getGPUMemory()),
+				//EnvResourceByDev:       fmt.Sprintf("%d", getGPUMemory()),
 			},
 		}
 		responses.ContainerResponses = append(responses.ContainerResponses, &response)
@@ -59,7 +63,7 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 	m.Lock()
 	defer m.Unlock()
 	log.Infoln("checking...")
-	pods, err := getCandidatePods(m.queryKubelet, m.kubeletClient)
+	pods, err := getCandidatePods(ctx, m.queryKubelet, m.kubeletClient)
 	if err != nil {
 		log.Infof("invalid allocation requst: Failed to find candidate pods due to %v", err)
 		return buildErrResponse(reqs, podReqGPU), nil
@@ -90,7 +94,7 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 	if found {
 		id := getGPUIDFromPodAnnotation(assumePod)
 		if id < 0 {
-			log.Warningf("Failed to get the dev ", assumePod)
+			log.Warningf("Failed to get the dev %v", assumePod)
 		}
 
 		candidateDevID := ""
@@ -118,7 +122,7 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 					EnvResourceIndex:       fmt.Sprintf("%d", id),
 					EnvResourceByPod:       fmt.Sprintf("%d", podReqGPU),
 					EnvResourceByContainer: fmt.Sprintf("%d", reqGPU),
-					EnvResourceByDev:       fmt.Sprintf("%d", getGPUMemory()),
+					//EnvResourceByDev:       fmt.Sprintf("%d", getGPUMemory()),
 				},
 			}
 			if m.disableCGPUIsolation {
@@ -132,12 +136,12 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 		if err != nil {
 			return buildErrResponse(reqs, podReqGPU), nil
 		}
-		_, err = clientset.CoreV1().Pods(assumePod.Namespace).Patch(assumePod.Name, types.StrategicMergePatchType, patchedAnnotationBytes)
+		_, err = clientset.CoreV1().Pods(assumePod.Namespace).Patch(ctx, assumePod.Name, types.StrategicMergePatchType, patchedAnnotationBytes, metav1.PatchOptions{})
 		if err != nil {
 			// the object has been modified; please apply your changes to the latest version and try again
 			if err.Error() == OptimisticLockErrorMsg {
 				// retry
-				_, err = clientset.CoreV1().Pods(assumePod.Namespace).Patch(assumePod.Name, types.StrategicMergePatchType, patchedAnnotationBytes)
+				_, err = clientset.CoreV1().Pods(assumePod.Namespace).Patch(ctx, assumePod.Name, types.StrategicMergePatchType, patchedAnnotationBytes, metav1.PatchOptions{})
 				if err != nil {
 					log.Warningf("Failed due to %v", err)
 					return buildErrResponse(reqs, podReqGPU), nil
@@ -165,7 +169,7 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context,
 					EnvResourceIndex:       fmt.Sprintf("%d", devIndex),
 					EnvResourceByPod:       fmt.Sprintf("%d", podReqGPU),
 					EnvResourceByContainer: fmt.Sprintf("%d", reqGPU),
-					EnvResourceByDev:       fmt.Sprintf("%d", getGPUMemory()),
+					//EnvResourceByDev:       fmt.Sprintf("%d", getGPUMemory()),
 				},
 			}
 			if m.disableCGPUIsolation {

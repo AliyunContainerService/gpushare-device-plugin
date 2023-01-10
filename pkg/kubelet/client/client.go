@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	v1 "k8s.io/api/core/v1"
-	utilnet "k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/apimachinery/pkg/util/net"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
 	"net/http"
@@ -90,7 +90,7 @@ func makeTransport(config *KubeletClientConfig, insecureSkipTLSVerify bool) (htt
 	rt := http.DefaultTransport
 	if tlsConfig != nil {
 		// If SSH Tunnel is turned on
-		rt = utilnet.SetOldTransportDefaults(&http.Transport{
+		rt = net.SetOldTransportDefaults(&http.Transport{
 			TLSClientConfig: tlsConfig,
 		})
 	}

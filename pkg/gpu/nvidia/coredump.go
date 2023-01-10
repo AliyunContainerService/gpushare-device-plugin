@@ -1,7 +1,7 @@
 package nvidia
 
 import (
-	"io/ioutil"
+	"os"
 	"runtime"
 
 	log "github.com/golang/glog"
@@ -26,5 +26,5 @@ func StackTrace(all bool) string {
 
 func coredump(fileName string) {
 	log.Infoln("Dump stacktrace to ", fileName)
-	ioutil.WriteFile(fileName, []byte(StackTrace(true)), 0644)
+	os.WriteFile(fileName, []byte(StackTrace(true)), 0644)
 }

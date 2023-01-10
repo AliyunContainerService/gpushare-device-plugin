@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"golang.org/x/net/context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 
 	log "github.com/golang/glog"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1 "k8s.io/api/core/v1"
 )
@@ -187,6 +188,7 @@ func (n *NodeInfo) getDeivceInfo(pod v1.Pod) map[int]int {
 			}
 		} else {
 			log.Warningf("Failed to get dev id %s for pod %s in ns %s",
+				value,
 				pod.Name,
 				pod.Namespace)
 		}
@@ -205,8 +207,8 @@ func hasPendingGPUMemory(nodeInfos []*NodeInfo) (found bool) {
 	return false
 }
 
-func getNodes(nodeName string) ([]v1.Node, error) {
-	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+func getNodes(ctx context.Context, nodeName string) ([]v1.Node, error) {
+	node, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	return []v1.Node{*node}, err
 }
 

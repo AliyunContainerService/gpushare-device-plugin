@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"golang.org/x/net/context"
 	"os"
 
 	v1 "k8s.io/api/core/v1"
@@ -42,16 +43,17 @@ func main() {
 	var pods []v1.Pod
 	var nodes []v1.Node
 	var err error
+	ctx := context.Background()
 
 	if nodeName == "" {
-		nodes, err = getAllSharedGPUNode()
+		nodes, err = getAllSharedGPUNode(ctx)
 		if err == nil {
-			pods, err = getActivePodsInAllNodes()
+			pods, err = getActivePodsInAllNodes(ctx)
 		}
 	} else {
-		nodes, err = getNodes(nodeName)
+		nodes, err = getNodes(ctx, nodeName)
 		if err == nil {
-			pods, err = getActivePodsByNode(nodeName)
+			pods, err = getActivePodsByNode(ctx, nodeName)
 		}
 	}
 

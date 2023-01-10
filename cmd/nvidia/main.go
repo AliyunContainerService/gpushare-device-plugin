@@ -1,15 +1,20 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"time"
-
 	"github.com/AliyunContainerService/gpushare-device-plugin/pkg/gpu/nvidia"
 	"github.com/AliyunContainerService/gpushare-device-plugin/pkg/kubelet/client"
 	log "github.com/golang/glog"
+	"github.com/pkg/errors"
 	"k8s.io/client-go/rest"
+	"net/http"
+	"os"
+
+	"github.com/gin-contrib/pprof"
+	"github.com/gin-gonic/gin"
+	"time"
 )
 
 var (
@@ -27,7 +32,7 @@ var (
 
 func buildKubeletClient() *client.KubeletClient {
 	if *clientCert == "" && *clientKey == "" && *token == "" {
-		tokenByte, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
+		tokenByte, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 		if err != nil {
 			panic(fmt.Errorf("in cluster mode, find token failed, error: %v", err))
 		}
@@ -55,10 +60,30 @@ func buildKubeletClient() *client.KubeletClient {
 func main() {
 	flag.Parse()
 	log.V(1).Infoln("Start gpushare device plugin")
-
+	ctx := context.Background()
 	kubeletClient := buildKubeletClient()
 	ngm := nvidia.NewSharedGPUManager(*mps, *healthCheck, *queryFromKubelet, translatememoryUnits(*memoryUnit), kubeletClient)
-	err := ngm.Run()
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("Recover error %+v \n", err)
+		}
+		os.Exit(1)
+	}()
+	r := gin.New()
+	_ = r.SetTrustedProxies(nil)
+
+	// pprof
+	pprof.Register(r)
+	httpSrv := &http.Server{Addr: ":8085", Handler: r}
+	go func() {
+		err := httpSrv.ListenAndServe()
+		if errors.Is(err, http.ErrServerClosed) {
+			log.Infof("HTTP server closed")
+		} else {
+			log.Warningf("Error occurs in http server: %v", err)
+		}
+	}()
+	err := ngm.Run(ctx)
 	if err != nil {
 		log.Fatalf("Failed due to %v", err)
 	}
